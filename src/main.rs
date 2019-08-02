@@ -28,7 +28,7 @@ fn main() {
 
     // Tout d'abord, pour chaque nombre de dés, on calcule face à quels choix
     // on peut se retrouver, et avec quelle probabilité
-    let mut distribution_choix = Vec::new();
+    let mut choix_vs_nb_des = Vec::new();
 
     // On étudie des lancers de 1 à 6 dés
     for nb_des in 1..=NB_DES_TOT {
@@ -57,17 +57,17 @@ fn main() {
             *compte += 1;
         }
 
-        // ...dont on tire, paramètre important, la proportion de jets perdants
-        let prop_perdant = comptage_choix[&Choix::new()] as f32 / nb_comb as f32;
-        println!("Proportion combinaisons perdantes: {}", prop_perdant);
-
         // Nous en tirons une table des choix face auxquels on peut se
         // retrouver, avec la probabilité de chacun.
         let norme = 1. / (nb_comb as Probabilite);
-        let choix_et_probas =
+        let mut choix_et_probas =
             comptage_choix.into_iter()
                           .map(|(tirage, nb)| (tirage, (nb as Probabilite) * norme))
                           .collect::<Vec<ChoixEtProba>>();
+
+        // Il vaut mieux trier cette table, ça simplifie la lecture et met la
+        // combinaison perdante au début.
+        choix_et_probas.sort_unstable_by(|(tirage1, _), (tirage2, _)| tirage1.cmp(tirage2));
 
         // Nous pouvons maintenant énumérer les combinaisons possibles
         println!("Tirages possibles: {}", choix_et_probas.len());
@@ -91,10 +91,11 @@ fn main() {
 
         // Gardons de côté les choix face auxquels on peut se retrouver (et leur
         // proba) pour ce nombre de dés.
-        distribution_choix.push(choix_et_probas);
-
-        // TODO: Calculer l'espérance de gain totale
+        choix_vs_nb_des.push(choix_et_probas);
 
         println!();
     }
+
+    // TODO: Espérance de gain à deux jets.
+    // TODO: ...et ainsi de suite jusqu'à ce que ça converge.
 }
