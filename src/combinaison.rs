@@ -6,7 +6,7 @@ pub type Valeur = u64;
 
 // Combinaison gagnante définie par la règle de la mitraillette, que l'on peut
 // choisir d'encaisser ou de mettre de côté en relançant le reste des dés.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Combinaison {
     // 1 2 3 4 5 6
     Suite,
