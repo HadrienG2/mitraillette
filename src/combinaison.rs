@@ -1,8 +1,8 @@
 use crate::NB_FACES;
 
 
-// Valeur d'une combinaison (sommable sur toutes les combinaisons)
-pub type Valeur = u64;
+// Valeur d'une combinaison
+pub type Valeur = u16;
 
 // Combinaison gagnante définie par la règle de la mitraillette, que l'on peut
 // choisir d'encaisser ou de mettre de côté en relançant le reste des dés.
