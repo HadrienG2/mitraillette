@@ -1,33 +1,53 @@
 const NB_DES_TOT : usize = 6;
 const NB_FACES : usize = 6;
 
-type Face = u8;
 type Histogramme = [usize; NB_FACES];
+type Valeur = u64;
 
 // Combinaisons gagnantes définies par la règle de la mitraillette
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 enum Combinaisons {
-    // Consomme 6 dés, vaut 500 points
+    // 1 2 3 4 5 6
     Suite,
 
-    // Consomme 6 dés, vaut 500 points
+    // aa bb cc
     TriplePaire,
 
-    // Consomme 6 dés, vaut la somme des valeurs de brelans simples, peut être
-    // interprété comme un brelan simple
-    BrelanDouble { faces: [Face; 2] },
+    // aaa bbb (trié par a < b)
+    BrelanDouble { idx_faces: [usize; 2] },
 
-    // Consomme 3 dés + nb 1 et 5, vaut (face * 100) ou 1000 si face = 1,
-    // plus la valeur des uns et des cinq
-    BrelanSimple { face: Face, nb_un: usize, nb_cinq: usize },
+    // aaa xyz (où x, y, z peut contenir 1 et 5)
+    BrelanSimple { idx_face: usize, nb_un: usize, nb_cinq: usize },
 
-    // Consomme nb 1 et 5, vaut 100 par 1 et 50 par 5
+    // Des 1, des 5, et rien d'autre
     FacesSimples { nb_un: usize, nb_cinq: usize },
+}
+
+impl Combinaisons {
+    fn valeur(&self) -> Valeur {
+        use Combinaisons::*;
+        const VALEURS_BRELANS: [Valeur; NB_FACES] = [1000, 200, 300, 400, 500, 600];
+        match self {
+            Suite | TriplePaire => 500,
+            BrelanDouble { idx_faces: [idx_face_1, idx_face_2] } =>
+                VALEURS_BRELANS[*idx_face_1] + VALEURS_BRELANS[*idx_face_2],
+            BrelanSimple { idx_face, nb_un, nb_cinq } =>
+                VALEURS_BRELANS[*idx_face]
+                    + (*nb_un as Valeur) * 100
+                    + (*nb_cinq as Valeur) * 50,
+            FacesSimples { nb_un, nb_cinq } =>
+                (*nb_un as Valeur) * 100
+                    + (*nb_cinq as Valeur) * 50,
+        }
+    }
 }
 
 
 // Enumérer les combinaisons pour un histogramme donné
-fn enumerer_combinaisons(histo: Histogramme, combis: &mut Vec<Combinaisons>) {
+fn enumerer_combinaisons(histo: Histogramme) -> Vec<Combinaisons> {
+    // Préparation du stockage
+    let mut combis = Vec::new();
+
     // Traitement des suites
     if histo.iter().all(|&bin| bin == 1) {
         combis.push(Combinaisons::Suite);
@@ -43,46 +63,49 @@ fn enumerer_combinaisons(histo: Histogramme, combis: &mut Vec<Combinaisons>) {
     for (idx_face, &bin) in histo.iter().enumerate() {
         if bin < 3 { continue; }
 
-        let face = (idx_face as Face) + 1;
-        combis.push(Combinaisons::BrelanSimple { face, nb_un: 0, nb_cinq: 0 });
+        combis.push(Combinaisons::BrelanSimple { idx_face, nb_un: 0, nb_cinq: 0 });
         
-        let mut combis_internes = Vec::new();
         let mut histo_sans_brelans = histo.clone();
         histo_sans_brelans[idx_face] -= 3;
-        enumerer_combinaisons(histo_sans_brelans, &mut combis_internes);
+        let combis_internes = enumerer_combinaisons(histo_sans_brelans);
 
         for combi in combis_internes {
             match combi {
-                Combinaisons::BrelanSimple { face: face_2, nb_un: 0, nb_cinq: 0 } => {
-                    if face_2 < face { continue; } // Evite le double comptage
-                    combis.push(Combinaisons::BrelanDouble { faces: [face, face_2] });
+                Combinaisons::BrelanSimple { idx_face: idx_face_2, nb_un: 0, nb_cinq: 0 } => {
+                    if idx_face_2 < idx_face { continue; } // Evite le double comptage
+                    combis.push(Combinaisons::BrelanDouble { idx_faces: [idx_face, idx_face_2] });
                 }
                 Combinaisons::FacesSimples { nb_un, nb_cinq } => {
-                    combis.push(Combinaisons::BrelanSimple { face, nb_un, nb_cinq });
+                    combis.push(Combinaisons::BrelanSimple { idx_face, nb_un, nb_cinq });
                 }
                 _ => unreachable!()
             }
         }
     }
 
-    // Traitement des faces simples
-    // FIXME: Ignorer le cas où on prend un 1 quand on pourrait prendre un 5
-    for nb_un in 0..=histo[0] {
-        for nb_cinq in 0..=histo[4] {
-            if nb_un == 0 && nb_cinq == 0 { continue; }
-            combis.push(Combinaisons::FacesSimples{ nb_un, nb_cinq });
-        }
+    // Traitement des faces simples, on ne prend un 5 que si on prend le 1
+    for nb_un in 1..=histo[0] {
+        combis.push(Combinaisons::FacesSimples{ nb_un, nb_cinq: 0 });
     }
+    for nb_cinq in 1..=histo[4] {
+        combis.push(Combinaisons::FacesSimples{ nb_un: histo[0], nb_cinq });
+    }
+
+    // ...et on a tout traité
+    combis
 }
 
 
 fn main() {
+    println!();
+
     // On étudie des lancers de 1 à 6 dés
     for nb_des in 1..=NB_DES_TOT {
         let nb_comb = NB_FACES.pow(nb_des as u32);
         println!("Nombre de lancers possibles à {} dés: {}", nb_des, nb_comb);
 
         let mut nb_gagnants = 0;
+        let mut val_totale = 0;
 
         // On énumère tous les lancers possibles pour ce nombre de dés
         for num_comb in 0..nb_comb {
@@ -92,27 +115,26 @@ fn main() {
             // On énumère les faces en traitant la combinaison comme un nombre
             // en base NB_FACES (note: la face 1 est numérotée 0), et on calcule
             // l'histogramme du nombre de dés étant tombé sur chaque face.
-            print!("- Combinaison: ");
+            /* print!("- Combinaison: "); */
             for _ in 0..nb_des {
                 let idx_face = reste % NB_FACES;
-                print!("{}", idx_face+1);
+                /* print!("{}", idx_face+1); */
                 histo[idx_face] += 1;
                 reste /= NB_FACES;
             }
-            println!(" (histogramme: {:?})", histo);
+            /* println!(" (histogramme: {:?})", histo); */
 
-            // Enumérons les différentes manières de lire le résultat selon les
-            // règles de la mitraillette.
-            let mut combis = Vec::new();
-            enumerer_combinaisons(histo, &mut combis);
+            // Enumérons les lectures selon les règles de la mitraillette
+            let combis = enumerer_combinaisons(histo);
+            /* for combi in combis.iter() {
+                println!("  * {:?} (valeur {})", combi, combi.valeur());
+            } */
 
-            for combi in combis.iter() {
-                println!("  * {:?}", combi);
-            }
-
-            // On comptabilise les tirages gagnants...
-            if combis.len() > 0 {
+            // Supposons qu'on s'arrête là, combien gagne-t'on?
+            let valeur_max = combis.iter().map(|comb| comb.valeur()).max();
+            if let Some(valeur_max) = valeur_max {
                 nb_gagnants += 1;
+                val_totale += valeur_max;
             }
 
             // TODO: Calculer le score de l'interprétation de valeur maximale de
@@ -162,6 +184,12 @@ fn main() {
         let prop_perdant = (nb_comb - nb_gagnants) as f32 / nb_comb as f32;
         println!("Proportion combinaisons perdantes: {}", prop_perdant);
 
-        // TODO: Calculer l'espérance de gain
+        // ...et l'espérance de gain à un jet de dé
+        let esperance_un_jet = val_totale as f32 / nb_comb as f32;
+        println!("Espérance de gain à un jet: {}", esperance_un_jet);
+
+        // TODO: Calculer l'espérance de gain totale
+
+        println!();
     }
 }
