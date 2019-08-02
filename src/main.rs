@@ -1,6 +1,7 @@
+mod choix;
 mod combinaison;
 
-use crate::combinaison::Combinaison;
+use crate::choix::Choix;
 use std::collections::HashMap;
 
 
@@ -12,67 +13,6 @@ const NB_FACES : usize = 6;
 
 // Histogramme d'un jet de dé par face (nb de dés tombé sur chaque face)
 type HistogrammeFaces = [usize; NB_FACES];
-
-// Valeur d'une combinaison (sommable sur toutes les combinaisons)
-type Valeur = u64;
-
-// Parfois, plusieurs combinaisons sont possibles, et il faut en choisir une.
-// Parfois, aucune combinaison n'est possible, et on a alors perdu.
-type Choix = Vec<Combinaison>;
-
-// Enumérer les choix possibles pour un histogramme donné
-fn enumerer_choix(histo: HistogrammeFaces) -> Choix {
-    // Préparation du stockage
-    let mut choix = Choix::new();
-
-    // Traitement des suites
-    if histo.iter().all(|&bin| bin == 1) {
-        choix.push(Combinaison::Suite);
-    }
-
-    // Traitement des triple paires
-    let num_paires: usize = histo.iter().map(|&bin| bin/2).sum();
-    if num_paires == 3 {
-        choix.push(Combinaison::TriplePaire);
-    }
-
-    // Traitement des brelans
-    for (idx_face, &bin) in histo.iter().enumerate() {
-        if bin < 3 { continue; }
-
-        choix.push(Combinaison::BrelanSimple { idx_face, nb_un: 0, nb_cinq: 0 });
-        
-        let mut histo_sans_brelans = histo.clone();
-        histo_sans_brelans[idx_face] -= 3;
-        let choix_internes = enumerer_choix(histo_sans_brelans);
-
-        for combi in choix_internes {
-            match combi {
-                Combinaison::BrelanSimple { idx_face: idx_face_2, nb_un: 0, nb_cinq: 0 } => {
-                    if idx_face_2 < idx_face { continue; } // Evite le double comptage
-                    choix.push(Combinaison::BrelanDouble { idx_faces: [idx_face, idx_face_2] });
-                }
-                Combinaison::FacesSimples { nb_un, nb_cinq } => {
-                    choix.push(Combinaison::BrelanSimple { idx_face, nb_un, nb_cinq });
-                }
-                _ => unreachable!()
-            }
-        }
-    }
-
-    // Traitement des faces simples, selon certains principes:
-    // - Il n'est pas rationnel de prendre un 5 sans avoir pris tous les 1
-    // - Il n'est pas rationnel de compter trois 5 ou 1 autrement que comme brelan
-    for nb_un in 1..=(histo[0]%3) {
-        choix.push(Combinaison::FacesSimples{ nb_un, nb_cinq: 0 });
-    }
-    for nb_cinq in 1..=(histo[4]%3) {
-        choix.push(Combinaison::FacesSimples{ nb_un: histo[0]%3, nb_cinq });
-    }
-
-    // ...et on a tout traité
-    choix
-}
 
 
 fn main() {
@@ -102,7 +42,7 @@ fn main() {
             }
 
             // On énumère les combinaisons qu'on peut prendre
-            let choix = enumerer_choix(histo);
+            let choix = choix::enumerer_choix(histo);
             let nb = nb_par_tirage.entry(choix.clone()).or_insert(0);
             *nb += 1;
 
