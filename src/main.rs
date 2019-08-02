@@ -62,7 +62,7 @@ fn main() {
         let norme = 1. / (nb_comb as Probabilite);
         let mut choix_et_probas =
             comptage_choix.into_iter()
-                          .map(|(tirage, nb)| (tirage, (nb as Probabilite) * norme))
+                          .map(|(choix, nb)| (choix, (nb as Probabilite) * norme))
                           .collect::<Vec<ChoixEtProba>>();
 
         // Il vaut mieux trier cette table, ça simplifie la lecture et met la
@@ -70,9 +70,9 @@ fn main() {
         choix_et_probas.sort_unstable_by(|(tirage1, _), (tirage2, _)| tirage1.cmp(tirage2));
 
         // Nous pouvons maintenant énumérer les combinaisons possibles
-        println!("Tirages possibles: {}", choix_et_probas.len());
-        for (tirage, proba) in choix_et_probas.iter() {
-            println!("- {:?} (Proportion: {})", tirage, proba);
+        println!("Choix possibles: {}", choix_et_probas.len());
+        for (choix, proba) in choix_et_probas.iter() {
+            println!("- {:?} (Proportion: {})", choix, proba);
         }
 
         // Calculons l'espérance de gain à un jet de dés (on lance les dés et on
