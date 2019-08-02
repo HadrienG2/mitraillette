@@ -1,0 +1,7 @@
+[package]
+name = "mitraillette"
+version = "0.1.0"
+authors = ["Hadrien Grasland <grasland@lal.in2p3.fr>"]
+edition = "2018"
+
+[dependencies]
