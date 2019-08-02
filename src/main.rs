@@ -1,69 +1,27 @@
+mod combinaison;
+
+use crate::combinaison::Combinaison;
 use std::collections::HashMap;
 
 
+// Nombre de dés maximum qu'on peut lancer
 const NB_DES_TOT : usize = 6;
+
+// Nombre de faces par dé
 const NB_FACES : usize = 6;
 
-type Histogramme = [usize; NB_FACES];
+// Histogramme d'un jet de dé par face (nb de dés tombé sur chaque face)
+type HistogrammeFaces = [usize; NB_FACES];
+
+// Valeur d'une combinaison (sommable sur toutes les combinaisons)
 type Valeur = u64;
-
-// Combinaison gagnante définie par la règle de la mitraillette, que l'on peut
-// choisir d'encaisser ou de mettre de côté en relançant le reste des dés.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-enum Combinaison {
-    // 1 2 3 4 5 6
-    Suite,
-
-    // aa bb cc
-    TriplePaire,
-
-    // aaa bbb (trié par a < b pour éviter le double comptage)
-    BrelanDouble { idx_faces: [usize; 2] },
-
-    // aaa xyz (où x, y, z peut contenir 1 et 5)
-    BrelanSimple { idx_face: usize, nb_un: usize, nb_cinq: usize },
-
-    // Des 1, des 5, et rien d'autre
-    FacesSimples { nb_un: usize, nb_cinq: usize },
-}
-
-impl Combinaison {
-    // Valeur de la combinaison en points
-    fn valeur(&self) -> Valeur {
-        use Combinaison::*;
-        const VALEURS_BRELANS: [Valeur; NB_FACES] = [1000, 200, 300, 400, 500, 600];
-        match self {
-            Suite | TriplePaire => 500,
-            BrelanDouble { idx_faces: [idx_face_1, idx_face_2] } =>
-                VALEURS_BRELANS[*idx_face_1] + VALEURS_BRELANS[*idx_face_2],
-            BrelanSimple { idx_face, nb_un, nb_cinq } =>
-                VALEURS_BRELANS[*idx_face]
-                    + (*nb_un as Valeur) * 100
-                    + (*nb_cinq as Valeur) * 50,
-            FacesSimples { nb_un, nb_cinq } =>
-                (*nb_un as Valeur) * 100
-                    + (*nb_cinq as Valeur) * 50,
-        }
-    }
-
-    // Nombre de dés consommé si on encaisse la combinaison
-    #[allow(dead_code)]
-    fn nb_des(&self) -> usize {
-        use Combinaison::*;
-        match self {
-            Suite | TriplePaire | BrelanDouble { .. } => 6,
-            BrelanSimple { idx_face: _, nb_un, nb_cinq } => 3 + nb_un + nb_cinq,
-            FacesSimples { nb_un, nb_cinq } => nb_un + nb_cinq,
-        }
-    }
-}
 
 // Parfois, plusieurs combinaisons sont possibles, et il faut en choisir une.
 // Parfois, aucune combinaison n'est possible, et on a alors perdu.
 type Choix = Vec<Combinaison>;
 
 // Enumérer les choix possibles pour un histogramme donné
-fn enumerer_choix(histo: Histogramme) -> Choix {
+fn enumerer_choix(histo: HistogrammeFaces) -> Choix {
     // Préparation du stockage
     let mut choix = Choix::new();
 
