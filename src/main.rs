@@ -1,7 +1,10 @@
 mod choix;
 mod combinaison;
 
-use crate::choix::Choix;
+use crate::{
+    choix::Choix,
+    combinaison::Valeur,
+};
 
 use std::{
     cell::Cell,
@@ -24,18 +27,27 @@ type Flottant = f32;
 // Si on l'ensemble des jets de dés possibles à N dés, on se retrouve avec une
 // table des choix face auxquels on peut se retrouver en lançant les dés, et
 // des probabilités associées.
-type ChoixEtProba = (Choix, Flottant);
+struct StatsChoix {
+    // Choix de combinaisons auquel on fait face
+    choix: Choix,
+
+    // Probabilité qu'on a de faire face à ce choix
+    proba: Flottant,
+
+    // Valeur de la combinaison la plus chère
+    valeur_max: Valeur,
+}
 
 // Ce qu'on sait sur les jets d'un certain nombre de dés
 struct StatsJet {
-    choix_et_probas: Vec<ChoixEtProba>,
+    stats_choix: Vec<StatsChoix>,
     min_esperance_gain: Cell<Flottant>,
     proba_perte: Flottant,
 }
 
 
 fn main() {
-    println!("\n=== JETS ISOLES ===\n");
+    println!("\n=== ETUDE DES JETS SANS RELANCES ===\n");
 
     // Tout d'abord, pour chaque nombre de dés, on énumère les tiragess et
     // on en déduit la probabilité de perdre et les choix auxquels on peut faire
@@ -71,49 +83,55 @@ fn main() {
         }
 
         // Nous en tirons une table des choix face auxquels on peut se
-        // retrouver, avec la probabilité de chacun.
+        // retrouver, avec la probabilité de chacun et la valeur de la
+        // combinaison la plus chère.
         let norme = 1. / (nb_comb as Flottant);
-        let mut choix_et_probas =
+        let mut stats_choix =
             comptage_choix.into_iter()
-                          .map(|(choix, nb)| (choix, (nb as Flottant) * norme))
-                          .collect::<Vec<ChoixEtProba>>();
+                .map(|(choix, compte)| {
+                    let valeur_max = choix.iter()
+                                          .map(|comb| comb.valeur())
+                                          .max()
+                                          .unwrap_or(0);
+                    StatsChoix {
+                        choix,
+                        proba: (compte as Flottant) * norme,
+                        valeur_max,
+                    }
+                }).collect::<Vec<StatsChoix>>();
 
         // On trie la table, ce qui la rend plus lisible pour l'affichage, et
-        // place la combinaison perdante au début. On récupère la probabilité de
-        // celle-ci, puis on l'écarte puisqu'elle est spéciale (pas de choix)
-        choix_et_probas.sort_unstable_by(|(tirage1, _), (tirage2, _)| tirage1.cmp(tirage2));
-        let proba_perte = choix_et_probas.remove(0).1;
+        // place le cas sans combinaison au début. On récupère la probabilité de
+        // celui-ci, puis on l'écarte puisqu'il est spécial (c'est le seul
+        // cas où on ne peut pas prendre, il n'y a donc pas de choix).
+        stats_choix.sort_unstable_by(|s1, s2| s1.choix.cmp(&s2.choix));
+        let proba_perte = stats_choix.remove(0).proba;
         println!("Probabilité de perte: {}", proba_perte);
 
         // On peut aussi calculer l'espérance de gain sans relance (on lance les
         // dés, on prend la combinaison la plus élevée, et on s'arrête là).
         //
-        // C'est une borne inférieure de l'espérance de gain, puisqu'on ne
-        // relancera pour gagner plus que si la relance rapporte en moyenne plus
-        // que le gain maximal obtenu en s'arrêtant à cette combinaison.
+        // C'est une borne inférieure de l'espérance de gain réelle, puisqu'on
+        // ne relancera pour gagner plus que si la relance rapporte en moyenne
+        // plus que le gain maximal obtenu en s'arrêtant là.
         //
         let esperance_gain_sans_relancer : Flottant =
-            choix_et_probas.iter()
-                .map(|(choix, proba)| {
-                    choix.iter()
-                         .map(|comb| comb.valeur())
-                         .max()
-                         .unwrap_or(0) as Flottant
-                    * proba
-                })
+            stats_choix.iter()
+                .map(|s| s.valeur_max as Flottant * s.proba)
                 .sum();
         println!("Espérance sans relancer: {}", esperance_gain_sans_relancer);
 
         // Pour terminer, on énumère les combinaisons possibles
         println!("Choix auxquels on peut faire face:");
-        for (choix, proba) in choix_et_probas.iter() {
-            println!("- {:?} (Probabilité: {})", choix, proba);
+        for s in stats_choix.iter() {
+            println!("- {:?} (Probabilité: {}, Valeur max: {})",
+                     s.choix, s.proba, s.valeur_max);
         }
 
         // Nous gardons de côté ces calculs, on a besoin de les avoir effectués
         // pour tous les nombres de dés avant d'aller plus loin.
         stats_jets.push(StatsJet {
-            choix_et_probas,
+            stats_choix,
             min_esperance_gain: Cell::new(esperance_gain_sans_relancer),
             proba_perte,
         });
@@ -121,10 +139,14 @@ fn main() {
         println!();
     }
 
-    println!("=== RELANCES EVIDENTES ===\n");
+    println!("=== PRISE EN COMPTE DES RELANCES SIMPLES ===\n");
 
     // Maintenant, on peut affiner notre borne inférieure de l'espérance de gain
-    // par récurence, en utilisant la borne inférieure 
+    // par récurence. L'idée générale est de considérer une stratégie où on
+    // relance à chaque fois que notre borne inférieure de l'espérance de gain
+    // dit que c'est favorable, et de mettre à jour notre espérance de gain
+    // en fonction de ce nouveau résultat. Cela augmentera l'espérance de gain,
+    // ce qui peut affecter la stratégie ci-dessus, donc il faut itérer.
     loop {
         let mut continuer = false;
 
@@ -137,21 +159,21 @@ fn main() {
             let mut nouvelle_esperance_min = 0.;
 
             // On passe en revue tous les choix auxquels on peut faire face
+            // FIXME: Ne rien afficher pendant la récurence, seulement à la fin.
             println!("Cas à {} dés", nb_des);
-            for (choix, proba) in stats.choix_et_probas.iter() {
-                println!("- Choix: {:?} (Proba: {})", choix, proba);
+            for s in stats.stats_choix.iter() {
+                println!("- Choix: {:?} (Proba: {}, Valeur max: {})",
+                         s.choix, s.proba, s.valeur_max);
 
                 // Pour chaque choix, on examine la combinaison de plus forte
                 // valeur, et on cherche une borne inférieure à l'espérance de
                 // gain en cas de relance, sans solde préalable.
-                let mut val_sans_relance = 0;
                 let mut esperance_min_sans_solde: Flottant = 0.;
 
                 // Pour cela, on énumère les combinaisons...
-                for comb in choix {
+                for comb in s.choix.iter() {
                     println!("  * Combinaison: {:?}", comb);
                     println!("    o Valeur sans relance: Solde + {}", comb.valeur());
-                    val_sans_relance = val_sans_relance.max(comb.valeur());
                     let des_restants = nb_des - comb.nb_des();
                     let nouv_nb_des = if des_restants == 0 { 6 } else { des_restants };
                     let stats_nouv_des = &stats_jets[nouv_nb_des-1];
@@ -163,21 +185,20 @@ fn main() {
                     println!("    o Espérance avec relance: Solde * {} + {} + Espérance({} dés | Solde=0)",
                              proba_gain, valeur_amortie, nouv_nb_des);
                     let borne_inf_sans_solde = valeur_amortie + esperance_min;
-                    println!("    o ...où {} + Espérance({} dés | Solde=0) >= {}",
+                    println!("    o Dans le cas où Solde = 0, {} + Espérance({} dés | Solde=0) >= {}",
                              valeur_amortie, nouv_nb_des, borne_inf_sans_solde);
                     esperance_min_sans_solde = esperance_min_sans_solde.max(borne_inf_sans_solde);
                 }
 
                 // On voit que l'espérance à solde nulle est importante
-                println!("  * Dans le cas Solde = 0...");
-                println!("    o Valeur sans relance: {}", val_sans_relance);
+                println!("  * En conclusion, dans le cas où Solde = 0...");
                 println!("    o Espérance avec relance >= {}", esperance_min_sans_solde);
-                if esperance_min_sans_solde > val_sans_relance as Flottant {
+                if esperance_min_sans_solde > s.valeur_max as Flottant {
                     println!("    o Il faut toujours relancer!");
-                    nouvelle_esperance_min += esperance_min_sans_solde * proba;
+                    nouvelle_esperance_min += esperance_min_sans_solde * s.proba;
                 } else {
                     println!("    o On ne peut pas conclure pour l'instant...");
-                    nouvelle_esperance_min += val_sans_relance as Flottant * proba;
+                    nouvelle_esperance_min += s.valeur_max as Flottant * s.proba;
                 }
             }
 
