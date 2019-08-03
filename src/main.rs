@@ -8,6 +8,7 @@ use crate::{
 
 use std::{
     cell::Cell,
+    cmp::Ordering,
     collections::HashMap,
 };
 
@@ -165,9 +166,8 @@ fn main() {
                 println!("- Choix: {:?} (Proba: {}, Valeur max: {})",
                          s.choix, s.proba, s.valeur_max);
 
-                // Pour chaque choix, on examine la combinaison de plus forte
-                // valeur, et on cherche une borne inférieure à l'espérance de
-                // gain en cas de relance, sans solde préalable.
+                // Pour chaque choix, on calcule une borne inférieure à
+                // l'espérance de gain en cas de relance sans solde préalable.
                 let mut esperance_min_sans_solde: Flottant = 0.;
 
                 // Pour cela, on énumère les combinaisons...
@@ -189,7 +189,9 @@ fn main() {
                     esperance_min_sans_solde = esperance_min_sans_solde.max(borne_inf_sans_solde);
                 }
 
-                // On voit que l'espérance à solde nulle est importante
+                // On en déduit si il faut clairement relancer, et on intègre le
+                // résultat maximal (valeur max si on s'arrête ou borne
+                // inférieure de l'espérance de gain en cas de relance)
                 println!("  * En conclusion, dans le cas où Solde = 0...");
                 println!("    o Espérance avec relance >= {}", esperance_min_sans_solde);
                 if esperance_min_sans_solde > s.valeur_max as Flottant {
@@ -201,20 +203,27 @@ fn main() {
                 }
             }
 
-            if nouvelle_esperance_min > ancienne_esperance_min {
-                println!("- L'espérance minimale passe de {} à {}",
-                         ancienne_esperance_min, nouvelle_esperance_min);
-                stats.min_esperance_gain.set(nouvelle_esperance_min);
-                continuer = true;
-            } else if nouvelle_esperance_min == ancienne_esperance_min {
-                println!("- L'espérance min est stable");
-            } else {
-                unreachable!();
+            // Si l'espérance de gain a augmenté dans cette itération, on la met
+            // à jour et on note qu'il faut continuer d'itérer (puisque cela a
+            // une influence sur les résultats pour d'autres nombres de faces).
+            match nouvelle_esperance_min.partial_cmp(&ancienne_esperance_min) {
+                Some(Ordering::Greater) => {
+                    println!("- L'espérance minimale augmente de {} à {}",
+                             ancienne_esperance_min, nouvelle_esperance_min);
+                    stats.min_esperance_gain.set(nouvelle_esperance_min);
+                    continuer = true;
+                }
+                Some(Ordering::Equal) => {
+                    println!("- L'espérance minimale reste à {}",
+                             ancienne_esperance_min);
+                }
+                _ => unreachable!()
             }
 
             println!();
         }
 
+        // On sépare les résultats de différentes itérations
         if continuer {
             println!("------\n");
         } else {
