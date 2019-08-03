@@ -109,8 +109,8 @@ fn main() {
                 let proba_gain = 1. - stats_nouv_des.proba_perte;
                 println!("    o Nouveau nombre de dés: {} (Probabilité de gain: {})",
                          nouv_nb_des, proba_gain);
-                println!("    o Espérance avec relance: (Solde + {}) * {} + Espérance({} dés)",
-                         comb.valeur(), proba_gain, nouv_nb_des);
+                println!("    o Espérance avec relance: Solde * {} + {} + Espérance({} dés)",
+                         proba_gain, comb.valeur() as Probabilite * proba_gain, nouv_nb_des);
             }
         }
         println!();
