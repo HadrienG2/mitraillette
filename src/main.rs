@@ -115,9 +115,11 @@ fn main() {
         println!("Cas à {} dés", nb_des);
         for (choix, proba) in stats.choix_et_probas.iter() {
             println!("- Choix: {:?} (Proba: {})", choix, proba);
+            let mut val_sans_relance = 0;
             for comb in choix {
                 println!("  * Combinaison: {:?}", comb);
                 println!("    o Valeur sans relance: Solde + {}", comb.valeur());
+                val_sans_relance = val_sans_relance.max(comb.valeur());
                 let des_restants = nb_des - comb.nb_des();
                 let nouv_nb_des = if des_restants == 0 { 6 } else { des_restants };
                 let stats_nouv_des = &stats_jets[nouv_nb_des-1];
@@ -127,6 +129,8 @@ fn main() {
                 println!("    o Espérance avec relance: Solde * {} + {} + Espérance({} dés | Solde=0)",
                          proba_gain, comb.valeur() as Flottant * proba_gain, nouv_nb_des);
             }
+            println!("  * Dans le cas Solde = 0...");
+            println!("    o Valeur sans relance: {}", val_sans_relance);
         }
         println!();
     }
