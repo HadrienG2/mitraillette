@@ -15,17 +15,18 @@ const NB_FACES : usize = 6;
 type HistogrammeFaces = [usize; NB_FACES];
 
 // On va compter les probas sur 64-bit au cas où, on diminuera si besoin
-type Probabilite = f64;
+type Flottant = f32;
 
 // Si on l'ensemble des jets de dés possibles à N dés, on se retrouve avec une
 // table des choix face auxquels on peut se retrouver en lançant les dés, et
 // des probabilités associées.
-type ChoixEtProba = (Choix, Probabilite);
+type ChoixEtProba = (Choix, Flottant);
 
 // Ce qu'on sait sur les jets d'un certain nombre de dés
 struct StatsJet {
     choix_et_probas: Vec<ChoixEtProba>,
-    proba_perte: Probabilite,
+    esperance_sans_relance: Flottant,
+    proba_perte: Flottant,
 }
 
 
@@ -65,10 +66,10 @@ fn main() {
 
         // Nous en tirons une table des choix face auxquels on peut se
         // retrouver, avec la probabilité de chacun.
-        let norme = 1. / (nb_comb as Probabilite);
+        let norme = 1. / (nb_comb as Flottant);
         let mut choix_et_probas =
             comptage_choix.into_iter()
-                          .map(|(choix, nb)| (choix, (nb as Probabilite) * norme))
+                          .map(|(choix, nb)| (choix, (nb as Flottant) * norme))
                           .collect::<Vec<ChoixEtProba>>();
 
         // Il vaut mieux trier cette table, ça simplifie la lecture et met la
@@ -82,10 +83,24 @@ fn main() {
             println!("- {:?} (Proportion: {})", choix, proba);
         }
 
+        // ...et l'espérance sans relance
+        let esperance_sans_relance : Flottant =
+            choix_et_probas.iter()
+                .map(|(choix, proba)| {
+                    choix.iter()
+                         .map(|comb| comb.valeur())
+                         .max()
+                         .unwrap_or(0) as Flottant
+                    * proba
+                })
+                .sum();
+        println!("Espérance sans relance: {}", esperance_sans_relance);
+
         // Gardons de côté les choix face auxquels on peut se retrouver (et leur
         // proba) pour ce nombre de dés.
         stats_jets.push(StatsJet {
             choix_et_probas,
+            esperance_sans_relance,
             proba_perte,
         });
 
@@ -107,10 +122,10 @@ fn main() {
                 let nouv_nb_des = if des_restants == 0 { 6 } else { des_restants };
                 let stats_nouv_des = &stats_jets[nouv_nb_des-1];
                 let proba_gain = 1. - stats_nouv_des.proba_perte;
-                println!("    o Nouveau nombre de dés: {} (Probabilité de gain: {})",
-                         nouv_nb_des, proba_gain);
+                println!("    o Nouveau nombre de dés: {} (Probabilité de gain: {}, Espérance >= {})",
+                         nouv_nb_des, proba_gain, stats_nouv_des.esperance_sans_relance);
                 println!("    o Espérance avec relance: Solde * {} + {} + Espérance({} dés)",
-                         proba_gain, comb.valeur() as Probabilite * proba_gain, nouv_nb_des);
+                         proba_gain, comb.valeur() as Flottant * proba_gain, nouv_nb_des);
             }
         }
         println!();
