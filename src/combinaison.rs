@@ -44,7 +44,6 @@ impl Combinaison {
     }
 
     // Nombre de dés consommé si on encaisse la combinaison
-    #[allow(dead_code)]
     pub fn nb_des(&self) -> usize {
         use Combinaison::*;
         match self {
