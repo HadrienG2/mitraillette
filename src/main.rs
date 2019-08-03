@@ -25,11 +25,21 @@ type HistogrammeFaces = [usize; NB_FACES];
 // On va compter les probas sur 64-bit au cas où, on diminuera si besoin
 type Flottant = f32;
 
-// Si on l'ensemble des jets de dés possibles à N dés, on se retrouve avec une
-// table des choix face auxquels on peut se retrouver en lançant les dés, et
-// des probabilités associées.
+// Ce qu'on sait sur le lancer d'un certain nombre de dés
+struct StatsJet {
+    // Choix auxquels on peut faire face, si on tire des combinaisons
+    stats_choix: Vec<StatsChoix>,
+
+    // Borne inférieure de l'espérance de gain pour ce nombre de dés
+    min_esperance_gain: Cell<Flottant>,
+
+    // Probabilité de tirer une combinaison gagnante
+    proba_gain: Flottant,
+}
+
+// L'un dex choix face auxquels un jet de dés peut nous placer
 struct StatsChoix {
-    // Choix de combinaisons auquel on fait face
+    // Combinaisons entre lesquels il faut choisir
     choix: Choix,
 
     // Probabilité qu'on a de faire face à ce choix
@@ -37,18 +47,6 @@ struct StatsChoix {
 
     // Valeur de la combinaison la plus chère qu'on puisse choisir
     valeur_max: Valeur,
-}
-
-// Ce qu'on sait sur les jets d'un certain nombre de dés
-struct StatsJet {
-    // Choix on peut faire face, si on tire une combinaison gagnante
-    stats_choix: Vec<StatsChoix>,
-
-    // Borne inférieure de l'espérance de gain pour ce nombre de gain
-    min_esperance_gain: Cell<Flottant>,
-
-    // Probabilité de tirer une combinaison gagnante
-    proba_gain: Flottant,
 }
 
 
