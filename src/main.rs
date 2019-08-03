@@ -42,7 +42,7 @@ struct StatsChoix {
 struct StatsJet {
     stats_choix: Vec<StatsChoix>,
     min_esperance_gain: Cell<Flottant>,
-    proba_perte: Flottant,
+    proba_gain: Flottant,
 }
 
 
@@ -105,8 +105,8 @@ fn main() {
         // celui-ci, puis on l'écarte puisqu'il est spécial (c'est le seul
         // cas où on ne peut pas prendre, il n'y a donc pas de choix).
         stats_choix.sort_unstable_by(|s1, s2| s1.choix.cmp(&s2.choix));
-        let proba_perte = stats_choix.remove(0).proba;
-        println!("Probabilité de perte: {}", proba_perte);
+        let proba_gain = 1. - stats_choix.remove(0).proba;
+        println!("Probabilité de gagner: {}", proba_gain);
 
         // On peut aussi calculer l'espérance de gain sans relance (on lance les
         // dés, on prend la combinaison la plus élevée, et on s'arrête là).
@@ -133,7 +133,7 @@ fn main() {
         stats_jets.push(StatsJet {
             stats_choix,
             min_esperance_gain: Cell::new(esperance_gain_sans_relancer),
-            proba_perte,
+            proba_gain,
         });
 
         println!();
@@ -177,13 +177,12 @@ fn main() {
                     let des_restants = nb_des - comb.nb_des();
                     let nouv_nb_des = if des_restants == 0 { 6 } else { des_restants };
                     let stats_nouv_des = &stats_jets[nouv_nb_des-1];
-                    let proba_gain = 1. - stats_nouv_des.proba_perte;
                     let esperance_min = stats_nouv_des.min_esperance_gain.get();
                     println!("    o Nouveau nombre de dés: {} (Probabilité de gain: {}, Espérance >= {})",
-                             nouv_nb_des, proba_gain, esperance_min);
-                    let valeur_amortie = comb.valeur() as Flottant * proba_gain;
+                             nouv_nb_des, stats_nouv_des.proba_gain, esperance_min);
+                    let valeur_amortie = comb.valeur() as Flottant * stats_nouv_des.proba_gain;
                     println!("    o Espérance avec relance: Solde * {} + {} + Espérance({} dés | Solde=0)",
-                             proba_gain, valeur_amortie, nouv_nb_des);
+                             stats_nouv_des.proba_gain, valeur_amortie, nouv_nb_des);
                     let borne_inf_sans_solde = valeur_amortie + esperance_min;
                     println!("    o Dans le cas où Solde = 0, {} + Espérance({} dés | Solde=0) >= {}",
                              valeur_amortie, nouv_nb_des, borne_inf_sans_solde);
