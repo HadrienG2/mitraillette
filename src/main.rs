@@ -231,5 +231,6 @@ fn main() {
         }
     }
 
+    // TODO: Afficher les résultats de l'itération ici
     // TODO: Que faire ensuite?
 }
