@@ -31,7 +31,7 @@ struct StatsJet {
 
 
 fn main() {
-    println!("=== ORDRE 0: JETS ISOLES ===\n");
+    println!("\n=== ORDRE 0: JETS ISOLES ===\n");
 
     // Tout d'abord, pour chaque nombre de dés, on calcule face à quels choix
     // on peut se retrouver, et avec quelle probabilité
@@ -107,15 +107,18 @@ fn main() {
         println!();
     }
 
-    println!("=== ORDRE 1: JET SUIVI D'UN AUTRE JET ===\n");
+    println!("=== ORDRE 1: FAUT-IL RELANCER? ===\n");
 
     for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
         let nb_des = idx_nb_des + 1;
+
+        let mut nouvelle_esperance_min = 0.;
 
         println!("Cas à {} dés", nb_des);
         for (choix, proba) in stats.choix_et_probas.iter() {
             println!("- Choix: {:?} (Proba: {})", choix, proba);
             let mut val_sans_relance = 0;
+            let mut esperance_min_sans_solde: Flottant = 0.;
             for comb in choix {
                 println!("  * Combinaison: {:?}", comb);
                 println!("    o Valeur sans relance: Solde + {}", comb.valeur());
@@ -126,15 +129,29 @@ fn main() {
                 let proba_gain = 1. - stats_nouv_des.proba_perte;
                 println!("    o Nouveau nombre de dés: {} (Probabilité de gain: {}, Espérance >= {})",
                          nouv_nb_des, proba_gain, stats_nouv_des.esperance_sans_relance);
+                let valeur_amortie = comb.valeur() as Flottant * proba_gain;
                 println!("    o Espérance avec relance: Solde * {} + {} + Espérance({} dés | Solde=0)",
-                         proba_gain, comb.valeur() as Flottant * proba_gain, nouv_nb_des);
+                         proba_gain, valeur_amortie, nouv_nb_des);
+                let borne_inf_sans_solde = valeur_amortie + stats_nouv_des.esperance_sans_relance;
+                println!("    o ...où {} + Espérance({} dés | Solde=0) >= {}",
+                         valeur_amortie, nouv_nb_des, borne_inf_sans_solde);
+                esperance_min_sans_solde = esperance_min_sans_solde.max(borne_inf_sans_solde);
             }
             println!("  * Dans le cas Solde = 0...");
             println!("    o Valeur sans relance: {}", val_sans_relance);
+            println!("    o Espérance avec relance >= {}", esperance_min_sans_solde);
+            if esperance_min_sans_solde > val_sans_relance as Flottant {
+                println!("    o Il faut toujours relancer!");
+                nouvelle_esperance_min += esperance_min_sans_solde * proba;
+            } else {
+                println!("    o On ne peut pas conclure pour l'instant...");
+                nouvelle_esperance_min += val_sans_relance as Flottant * proba;
+            }
         }
+        println!("- L'espérance min passe de {} à {}", stats.esperance_sans_relance, nouvelle_esperance_min);
+        // TODO: Modifier l'espérance sans relance et itérer
         println!();
     }
 
-    // TODO: Espérance de gain à deux jets.
-    // TODO: ...et ainsi de suite jusqu'à ce que ça converge.
+    // TODO: Que faire ensuite?
 }
