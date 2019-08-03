@@ -1,4 +1,5 @@
 use crate::NB_FACES;
+use std::fmt::{self, Debug};
 
 
 // Valeur d'une combinaison
@@ -6,7 +7,7 @@ pub type Valeur = u16;
 
 // Combinaison gagnante définie par la règle de la mitraillette, que l'on peut
 // choisir d'encaisser ou de mettre de côté en relançant le reste des dés.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Combinaison {
     // 1 2 3 4 5 6
     Suite,
@@ -22,6 +23,34 @@ pub enum Combinaison {
 
     // Des 1, des 5, et rien d'autre
     FacesSimples { nb_un: usize, nb_cinq: usize },
+}
+
+impl Debug for Combinaison {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use Combinaison::*;
+        match *self {
+            Suite => write!(formatter, "Suite"),
+            TriplePaire => write!(formatter, "3Paires"),
+            BrelanDouble { idx_faces } => {
+                write!(formatter, "Brelan{}+Brelan{}",
+                       idx_faces[0]+1, idx_faces[1]+1)
+            },
+            BrelanSimple { idx_face, nb_un, nb_cinq } => {
+                write!(formatter, "Brelan{}", idx_face+1)?;
+                if nb_un > 0 { write!(formatter, "+{}x1", nb_un)?; }
+                if nb_cinq > 0 { write!(formatter, "+{}x5", nb_cinq)?; }
+                Ok(())
+            },
+            FacesSimples { nb_un, nb_cinq } => {
+                if nb_un > 0 {
+                    write!(formatter, "{}x1", nb_un)?;
+                    if nb_cinq > 0 { write!(formatter, "+")?; }
+                }
+                if nb_cinq > 0 { write!(formatter, "{}x5", nb_cinq)?; }
+                Ok(())
+            },
+        }
+    }
 }
 
 impl Combinaison {
