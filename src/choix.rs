@@ -4,19 +4,10 @@ use crate::{
 };
 
 
-// Pour un jet de dé possible, identifié par son histogramme, le joueur peut
-// avoir le choix entre plusieurs combinaisons.
-//
-// 0 combinaison = fin du tour, perte des gains
-// 1 combinaison = choix entre continuer et s'arrêter
-// 2+ combinaisons = choix entre les combinaisons pour continuer (ou arrêt)
-//
-pub type Choix = Vec<Combinaison>;
-
-// Enumérons les choix possibles pour un histogramme donné
-pub fn enumerer_choix(histo: HistogrammeFaces) -> Choix {
+// Cmbinaisons qu'on peut raisonnablement choisir pour un histogramme donné
+pub fn enumerer_combinaisons(histo: HistogrammeFaces) -> Vec<Combinaison> {
     // Préparation du stockage
-    let mut choix = Choix::new();
+    let mut choix = Vec::new();
 
     // Traitement des suites
     if histo.iter().all(|&bin| bin == 1) {
@@ -37,7 +28,7 @@ pub fn enumerer_choix(histo: HistogrammeFaces) -> Choix {
         
         let mut histo_sans_brelans = histo.clone();
         histo_sans_brelans[idx_face] -= 3;
-        let choix_internes = enumerer_choix(histo_sans_brelans);
+        let choix_internes = enumerer_combinaisons(histo_sans_brelans);
 
         for combi in choix_internes {
             match combi {

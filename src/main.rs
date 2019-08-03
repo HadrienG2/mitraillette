@@ -1,10 +1,7 @@
 mod choix;
 mod combinaison;
 
-use crate::{
-    choix::Choix,
-    combinaison::Valeur,
-};
+use crate::combinaison::{Combinaison, Valeur};
 
 use std::{
     cell::Cell,
@@ -40,13 +37,26 @@ struct StatsJet {
 // L'un dex choix face auxquels un jet de dés peut nous placer
 struct StatsChoix {
     // Combinaisons entre lesquels il faut choisir
-    choix: Choix,
+    choix: Vec<Possibilite>,
 
     // Probabilité qu'on a de faire face à ce choix
     proba: Flottant,
 
     // Valeur de la combinaison la plus chère qu'on puisse choisir
     valeur_max: Valeur,
+}
+
+// TODO: L'une des possibilités entre lesquelles il faut choisir
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+struct Possibilite {
+    // Combinaison qu'on décide ou non de choisir
+    comb: Combinaison,
+
+    // Valeur de cette combinaison
+    valeur: Valeur,
+
+    // Nombre de dés avec lequel on peut relancer ensuite
+    nb_des_relance: usize,
 }
 
 
@@ -64,7 +74,7 @@ fn main() {
         println!("Nombre de lancers possibles à {} dés: {}", nb_des, nb_comb);
 
         // On énumère tous les lancers possibles pour ce nombre de dés
-        let mut comptage_choix: HashMap<Choix, u16> = HashMap::new();
+        let mut comptage_choix = HashMap::new();
         for num_comb in 0..nb_comb {
             // On énumère les faces en traitant la combinaison comme un nombre
             // en base NB_FACES (note: la face 1 est numérotée 0), et on calcule
@@ -79,7 +89,7 @@ fn main() {
 
             // On déduit de cet histogramme les combinaisons entre lesquelles
             // on peut raisonnablement choisir...
-            let choix = choix::enumerer_choix(histo);
+            let choix = choix::enumerer_combinaisons(histo);
 
             // ...et on en compte les occurences, dont on déduira la probabilité
             let compte = comptage_choix.entry(choix.clone()).or_insert(0);
@@ -93,8 +103,23 @@ fn main() {
         let mut stats_choix =
             comptage_choix.into_iter()
                 .map(|(choix, compte)| {
+                    let choix = choix.into_iter()
+                        .map(|comb| {
+                            let valeur = comb.valeur();
+                            let des_restants = nb_des - comb.nb_des();
+                            let nb_des_relance = if des_restants == 0 {
+                                6
+                            } else {
+                                des_restants
+                            };
+                            Possibilite {
+                                comb,
+                                valeur,
+                                nb_des_relance,
+                            }
+                        }).collect::<Vec<_>>();
                     let valeur_max = choix.iter()
-                                          .map(|comb| comb.valeur())
+                                          .map(|poss| poss.valeur)
                                           .max()
                                           .unwrap_or(0);
                     StatsChoix {
@@ -145,12 +170,7 @@ fn main() {
 
     println!("=== PRISE EN COMPTE DES RELANCES SIMPLES ===\n");
 
-    // Maintenant, on peut affiner notre borne inférieure de l'espérance de gain
-    // par récurence. L'idée générale est de considérer une stratégie où on
-    // relance à chaque fois que notre borne inférieure de l'espérance de gain
-    // dit que c'est favorable, et de mettre à jour notre espérance de gain
-    // en fonction de ce nouveau résultat. Cela augmentera l'espérance de gain,
-    // ce qui peut affecter la stratégie ci-dessus, donc il faut itérer.
+    // On affine notre borne inférieure de l'espérance de gain par récurence
     loop {
         let mut continuer = false;
 
@@ -165,28 +185,26 @@ fn main() {
             // On passe en revue tous les choix auxquels on peut faire face
             // FIXME: Ne rien afficher pendant la récurence, seulement à la fin.
             println!("Cas à {} dés", nb_des);
-            for s in stats.stats_choix.iter() {
-                println!("- Choix: {:?} (Proba: {}, Valeur max: {})",
-                         s.choix, s.proba, s.valeur_max);
+            for stat_choix in stats.stats_choix.iter() {
+                println!("- Choix: {:?} (Proba: {})",
+                         stat_choix.choix, stat_choix.proba);
 
                 // Pour chaque choix, on calcule une borne inférieure à
-                // l'espérance de gain en cas de relance sans solde préalable.
+                // l'espérance de gain en cas de relance, sans solde préalable.
                 let mut esperance_min_sans_solde: Flottant = 0.;
 
                 // Pour cela, on énumère les combinaisons...
-                for comb in s.choix.iter() {
+                for poss in stat_choix.choix.iter() {
                     println!("  * Combinaison: {:?} (Valeur sans relance: Solde + {})",
-                             comb, comb.valeur());
-                    let des_restants = nb_des - comb.nb_des();
-                    let nouv_nb_des = if des_restants == 0 { 6 } else { des_restants };
-                    let stats_nouv_des = &stats_jets[nouv_nb_des-1];
+                             poss.comb, poss.valeur);
+                    let stats_nouv_des = &stats_jets[poss.nb_des_relance-1];
                     let esperance_min = stats_nouv_des.min_esperance_gain.get();
                     println!("    o Nouveau nombre de dés: {} (Probabilité de gain: {}, Espérance >= {})",
-                             nouv_nb_des, stats_nouv_des.proba_gain, esperance_min);
-                    let valeur_amortie = comb.valeur() as Flottant * stats_nouv_des.proba_gain;
+                             poss.nb_des_relance, stats_nouv_des.proba_gain, esperance_min);
+                    let valeur_amortie = poss.valeur as Flottant * stats_nouv_des.proba_gain;
                     let borne_inf_sans_solde = valeur_amortie + esperance_min;
                     println!("    o Espérance en cas de relance: Solde * {} + {} + Espérance({} dés | Solde=0) >= {}",
-                             stats_nouv_des.proba_gain, valeur_amortie, nouv_nb_des, borne_inf_sans_solde);
+                             stats_nouv_des.proba_gain, valeur_amortie, poss.nb_des_relance, borne_inf_sans_solde);
                     esperance_min_sans_solde = esperance_min_sans_solde.max(borne_inf_sans_solde);
                 }
 
@@ -194,13 +212,13 @@ fn main() {
                 // résultat maximal (valeur max si on s'arrête ou borne
                 // inférieure de l'espérance de gain en cas de relance)
                 println!("  * Donc, à solde nul, relancer c'est risquer {} pour un gain moyen >= {}",
-                         s.valeur_max, esperance_min_sans_solde);
-                if esperance_min_sans_solde > s.valeur_max as Flottant {
+                         stat_choix.valeur_max, esperance_min_sans_solde);
+                if esperance_min_sans_solde > stat_choix.valeur_max as Flottant {
                     println!("    o Il est prouvé qu'il faut alors relancer!");
-                    nouvelle_esperance_min += esperance_min_sans_solde * s.proba;
+                    nouvelle_esperance_min += esperance_min_sans_solde * stat_choix.proba;
                 } else {
                     println!("    o L'utilité de la relance n'est pas prouvée.");
-                    nouvelle_esperance_min += s.valeur_max as Flottant * s.proba;
+                    nouvelle_esperance_min += stat_choix.valeur_max as Flottant * stat_choix.proba;
                 }
             }
 
