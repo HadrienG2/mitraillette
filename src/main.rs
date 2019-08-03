@@ -35,14 +35,19 @@ struct StatsChoix {
     // Probabilité qu'on a de faire face à ce choix
     proba: Flottant,
 
-    // Valeur de la combinaison la plus chère
+    // Valeur de la combinaison la plus chère qu'on puisse choisir
     valeur_max: Valeur,
 }
 
 // Ce qu'on sait sur les jets d'un certain nombre de dés
 struct StatsJet {
+    // Choix on peut faire face, si on tire une combinaison gagnante
     stats_choix: Vec<StatsChoix>,
+
+    // Borne inférieure de l'espérance de gain pour ce nombre de gain
     min_esperance_gain: Cell<Flottant>,
+
+    // Probabilité de tirer une combinaison gagnante
     proba_gain: Flottant,
 }
 
@@ -172,8 +177,8 @@ fn main() {
 
                 // Pour cela, on énumère les combinaisons...
                 for comb in s.choix.iter() {
-                    println!("  * Combinaison: {:?}", comb);
-                    println!("    o Valeur sans relance: Solde + {}", comb.valeur());
+                    println!("  * Combinaison: {:?} (Valeur sans relance: Solde + {})",
+                             comb, comb.valeur());
                     let des_restants = nb_des - comb.nb_des();
                     let nouv_nb_des = if des_restants == 0 { 6 } else { des_restants };
                     let stats_nouv_des = &stats_jets[nouv_nb_des-1];
@@ -181,24 +186,22 @@ fn main() {
                     println!("    o Nouveau nombre de dés: {} (Probabilité de gain: {}, Espérance >= {})",
                              nouv_nb_des, stats_nouv_des.proba_gain, esperance_min);
                     let valeur_amortie = comb.valeur() as Flottant * stats_nouv_des.proba_gain;
-                    println!("    o Espérance avec relance: Solde * {} + {} + Espérance({} dés | Solde=0)",
-                             stats_nouv_des.proba_gain, valeur_amortie, nouv_nb_des);
                     let borne_inf_sans_solde = valeur_amortie + esperance_min;
-                    println!("    o Dans le cas où Solde = 0, {} + Espérance({} dés | Solde=0) >= {}",
-                             valeur_amortie, nouv_nb_des, borne_inf_sans_solde);
+                    println!("    o Espérance en cas de relance: Solde * {} + {} + Espérance({} dés | Solde=0) >= {}",
+                             stats_nouv_des.proba_gain, valeur_amortie, nouv_nb_des, borne_inf_sans_solde);
                     esperance_min_sans_solde = esperance_min_sans_solde.max(borne_inf_sans_solde);
                 }
 
                 // On en déduit si il faut clairement relancer, et on intègre le
                 // résultat maximal (valeur max si on s'arrête ou borne
                 // inférieure de l'espérance de gain en cas de relance)
-                println!("  * En conclusion, dans le cas où Solde = 0...");
-                println!("    o Espérance avec relance >= {}", esperance_min_sans_solde);
+                println!("  * Donc, à solde nul, relancer c'est risquer {} pour un gain moyen >= {}",
+                         s.valeur_max, esperance_min_sans_solde);
                 if esperance_min_sans_solde > s.valeur_max as Flottant {
-                    println!("    o Il faut toujours relancer!");
+                    println!("    o Il est prouvé qu'il faut alors relancer!");
                     nouvelle_esperance_min += esperance_min_sans_solde * s.proba;
                 } else {
-                    println!("    o On ne peut pas conclure pour l'instant...");
+                    println!("    o L'utilité de la relance n'est pas prouvée.");
                     nouvelle_esperance_min += s.valeur_max as Flottant * s.proba;
                 }
             }
