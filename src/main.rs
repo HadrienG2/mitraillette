@@ -17,10 +17,10 @@ const NB_DES_TOT : usize = 6;
 const NB_FACES : usize = 6;
 
 // Soldes pour lesquels on estime les espérances de gain
-const NUM_SOLDES : usize = 18;
-const SOLDES : [Valeur; NUM_SOLDES] = [0, 50, 100, 150, 200, 250, 300, 400, 500,
-                                       600, 700, 800, 900, 1000, 1100, 1200,
-                                       1300, 1400];
+const NB_SOLDES : usize = 18;
+const SOLDES : [Valeur; NB_SOLDES] = [0, 50, 100, 150, 200, 250, 300, 400, 500,
+                                      600, 700, 800, 900, 1000, 1100, 1200,
+                                      1300, 1400];
 
 // Histogramme d'un jet de dé par face (nb de dés tombé sur chaque face)
 type HistogrammeFaces = [usize; NB_FACES];
@@ -64,7 +64,7 @@ struct Possibilite {
     nb_des_relance: usize,
 
     // Borne inférieure de l'espérance de gain si on relance une fois
-    min_esperance_relance_simple: [Cell<Flottant>; NUM_SOLDES],
+    min_esperance_relance_simple: [Cell<Flottant>; NB_SOLDES],
 }
 
 impl Debug for Possibilite {
