@@ -151,8 +151,8 @@ fn main() {
         for (idx_solde, &solde_initial) in SOLDES.iter().enumerate() {
             let valeur_amortie = solde_initial as Flottant * proba_gain;
             let min_esperance = valeur_amortie + esperance_jet;
-            esperance_gain_sans_relancer[idx_solde] = min_esperance;
             println!("- Solde initial {}: {}", solde_initial, min_esperance);
+            esperance_gain_sans_relancer[idx_solde] = min_esperance;
         }
 
         // Nous gardons de côté ces calculs, on a besoin de les avoir effectués
@@ -222,6 +222,7 @@ fn main() {
             }
 
             println!("- Solde initial {}: {}", solde_initial, esperance_gain_relance_unique);
+            assert!(esperance_gain_relance_unique > stats.esperance_gain_sans_relancer[idx_solde]);
         }
         // TODO: Calculer pour les autres soldes
 
@@ -269,6 +270,9 @@ fn main() {
             }
 
             println!("- Solde initial {}: {}", solde_initial, esperance_gain_relance_double);
+             // FIXME: Stocker espérance de gain à relance unique et comparer
+             // FIXME: Si ça se stabilise, le calcul semble converger
+            assert!(esperance_gain_relance_double > stats.esperance_gain_sans_relancer[idx_solde]);
         }
 
         println!();
