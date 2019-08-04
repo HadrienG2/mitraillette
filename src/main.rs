@@ -16,6 +16,10 @@ const NB_DES_TOT : usize = 6;
 // Nombre de faces par dé
 const NB_FACES : usize = 6;
 
+// Soldes pour lesquels on estime les espérances de gain
+const NUM_SOLDES : usize = 18;
+const SOLDES : [Valeur; NUM_SOLDES] = [0, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000];
+
 // Histogramme d'un jet de dé par face (nb de dés tombé sur chaque face)
 type HistogrammeFaces = [usize; NB_FACES];
 
@@ -58,7 +62,7 @@ struct Possibilite {
     nb_des_relance: usize,
 
     // Borne inférieure de l'espérance de gain si on relance une fois
-    min_esperance_relance_simple: Cell<Flottant>,
+    min_esperance_relance_simple: [Cell<Flottant>; NUM_SOLDES],
 }
 
 impl Debug for Possibilite {
@@ -139,7 +143,24 @@ fn main() {
                                 comb,
                                 valeur,
                                 nb_des_relance,
-                                min_esperance_relance_simple: Cell::new(0.),
+                                min_esperance_relance_simple: [Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.),
+                                                               Cell::new(0.)],
                             }
                         }).collect::<Vec<_>>();
 
@@ -175,7 +196,12 @@ fn main() {
             stats_choix.iter()
                 .map(|s| s.valeur_max as Flottant * s.proba)
                 .sum();
-        println!("Espérance sans relancer: {}", esperance_gain_sans_relancer);
+        println!("Espérance sans relancer:",);
+        for &solde_initial in SOLDES.iter() {
+            let valeur_amortie = solde_initial as Flottant * proba_gain;
+            let min_esperance = valeur_amortie + esperance_gain_sans_relancer;
+            println!("- Solde initial {}: {}", solde_initial, min_esperance);
+        }
 
         // Nous gardons de côté ces calculs, on a besoin de les avoir effectués
         // pour tous les nombres de dés avant d'aller plus loin.
@@ -193,120 +219,104 @@ fn main() {
     // On affine notre borne inférieure de l'espérance de gain en considérant
     // une seule relance par jet
     for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
-        let mut esperance_gain_relance_unique = 0.;
+        println!("Espérances de gain à {} dés avec relance unique:", idx_nb_des + 1);
 
-        // On passe en revue tous les choix auxquels on peut faire face
-        for stat_choix in stats.stats_choix.iter() {
-            // Pour chaque choix, on calcule une borne inférieure de
-            // l'espérance de gain en cas de relance, sans solde préalable.
-            let mut max_min_esperance_relance: Flottant = 0.;
+        for (idx_solde, &solde_initial) in SOLDES.iter().enumerate() {
+            let mut esperance_gain_relance_unique = 0.;
 
-            // Pour cela, on étudie les relances pour chaque combinaison...
-            for poss in stat_choix.choix.iter() {
-                // Voyons les stats pour le nombre de dés qu'on relancerait
-                let stats_nouv_des = &stats_jets[poss.nb_des_relance-1];
+            // On passe en revue tous les choix auxquels on peut faire face
+            for stat_choix in stats.stats_choix.iter() {
+                // Pour chaque choix, on calcule une borne inférieure de
+                // l'espérance de gain en cas de relance, sans solde préalable.
+                let mut max_min_esperance_relance: Flottant = 0.;
 
-                // La probabilité de jet gagnant nous dit quelle proportion
-                // de la valeur on garde en moyenne en relançant
-                let valeur_amortie = poss.valeur as Flottant * stats_nouv_des.proba_gain;
+                // Pour cela, on étudie les relances pour chaque combinaison...
+                for poss in stat_choix.choix.iter() {
+                    // Voyons les stats pour le nombre de dés qu'on relancerait
+                    let stats_nouv_des = &stats_jets[poss.nb_des_relance-1];
 
-                // On y ajoute notre borne inférieure de ce qu'on espère
-                // gagner en relançant les dés restants une seule fois.
-                let min_esperance_relance = valeur_amortie + stats_nouv_des.esperance_gain_sans_relancer;
+                    // La probabilité de jet gagnant nous dit quelle proportion
+                    // de la valeur on garde en moyenne en relançant
+                    let valeur_amortie = (solde_initial as Flottant + poss.valeur as Flottant) * stats_nouv_des.proba_gain;
 
-                // On garde cette quantité de côté, elle sera utile quand on
-                // s'autorisera à relancer deux fois.
-                poss.min_esperance_relance_simple.set(min_esperance_relance);
+                    // On y ajoute notre borne inférieure de ce qu'on espère
+                    // gagner en relançant les dés restants une seule fois.
+                    let min_esperance_relance = valeur_amortie + stats_nouv_des.esperance_gain_sans_relancer;
 
-                // En calculant le maximum de ces bornes inférieures pour toutes
-                // les relances possibles, on en tire une borne inférieure de
-                // l'espérance de gain en cas de relance optimale.
-                max_min_esperance_relance = max_min_esperance_relance.max(min_esperance_relance);
-            }
+                    // On garde cette quantité de côté, elle sera utile quand on
+                    // s'autorisera à relancer deux fois.
+                    poss.min_esperance_relance_simple[idx_solde].set(min_esperance_relance);
 
-            // A ce stade, on sait ce qu'on gagne si on s'arrête là, et on a une
-            // borne inférieure de ce qu'on gagne en cas de relance optimale. En
-            // choisissant le plus avantageux des deux, on a une borne
-            // inférieure de ce qu'on gagne en choisissant ou non de relancer
-            // dans une stratégie de relance optimale.
-            let borne_inf_gain = max_min_esperance_relance.max(stat_choix.valeur_max as Flottant);
-            esperance_gain_relance_unique += borne_inf_gain * stat_choix.proba;
-        }
-
-        println!("Espérance de gain à {} dés avec relance unique: {}",
-                 idx_nb_des + 1, esperance_gain_relance_unique);
-        // FIXME: Ce calcul n'est pas correct, car il sous-estime la probabilité
-        //        de perdre le solde initial, en ne considérant que la
-        //        possibilité de perdre lors du premier lancer (et pas de la
-        //        relance éventuelle).
-        //
-        //        Pour effectuer ce calcul, il me faudrait au moins une borne de
-        //        la probabilité de perdre le gain dans une stratégie de relance
-        //        optimale... ce qui dépend probablement du solde initial.
-        //
-        /* println!("Lancer clairement pertinent si solde préalable < {}",
-                 esperance_gain_relance_unique / (1. - stats.proba_gain));
-        println!(); */
-    }
-
-    println!("\n=== PRISE EN COMPTE DE RELANCES DOUBLES ===\n");
-
-    // TODO: Prendre en compte les relances doubles, triples...
-
-    // WIP, copié-collé de ci-dessus
-    for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
-        let mut esperance_gain_relance_double = 0.;
-
-        for stat_choix in stats.stats_choix.iter() {
-            let mut max_min_esperance_relance: Flottant = 0.;
-
-            for poss in stat_choix.choix.iter() {
-                // Relance simple: on relance, et on prend ce qui sort
-                // TODO: Copie du calcul précédent, peut être éliminée en mettant en cache
-                let stats_nouv_des = &stats_jets[poss.nb_des_relance-1];
-                let valeur_amortie = poss.valeur as Flottant * stats_nouv_des.proba_gain;
-                let min_esperance_relance_simple = poss.min_esperance_relance_simple.get();
-                max_min_esperance_relance = max_min_esperance_relance.max(min_esperance_relance_simple);
-
-                // Relance double: on relance, et on relance encore
-                // TODO: Exprimable en fonction des calculs précédents?
-                let mut esperance_gain_relance_double_2 = 0.;
-                for stats_choix_2 in stats_nouv_des.stats_choix.iter() {
-                    let mut max_min_esperance_relance_2: Flottant = 0.;
-                    for poss_2 in stats_choix_2.choix.iter() {
-                        let stats_nouv_des_2 = &stats_jets[poss_2.nb_des_relance-1];
-                        let valeur_amortie_2 = valeur_amortie * stats_nouv_des_2.proba_gain;
-                        let min_esperance_relance_2 = poss_2.min_esperance_relance_simple.get() + valeur_amortie_2;
-                        // Le résultat de ce max sera donc peut-être différent, donc à partir de là ça change
-                        max_min_esperance_relance_2 = max_min_esperance_relance_2.max(min_esperance_relance_2);
-                    }
-                    // ...et donc là ça change aussi
-                    let borne_inf_gain_2 = max_min_esperance_relance_2.max(stat_choix.valeur_max as Flottant);
-                    esperance_gain_relance_double_2 += borne_inf_gain_2 * stats_choix_2.proba;
+                    // En calculant le maximum de ces bornes inférieures pour toutes
+                    // les relances possibles, on en tire une borne inférieure de
+                    // l'espérance de gain en cas de relance optimale.
+                    max_min_esperance_relance = max_min_esperance_relance.max(min_esperance_relance);
                 }
-                max_min_esperance_relance = max_min_esperance_relance.max(esperance_gain_relance_double_2);
+
+                // A ce stade, on sait ce qu'on gagne si on s'arrête là, et on a une
+                // borne inférieure de ce qu'on gagne en cas de relance optimale. En
+                // choisissant le plus avantageux des deux, on a une borne
+                // inférieure de ce qu'on gagne en choisissant ou non de relancer
+                // dans une stratégie de relance optimale.
+                let borne_inf_gain = max_min_esperance_relance.max(solde_initial as Flottant + stat_choix.valeur_max as Flottant);
+                esperance_gain_relance_unique += borne_inf_gain * stat_choix.proba;
             }
 
-            let borne_inf_gain = max_min_esperance_relance.max(stat_choix.valeur_max as Flottant);
-            esperance_gain_relance_double += borne_inf_gain * stat_choix.proba;
+            println!("- Solde initial {}: {}", solde_initial, esperance_gain_relance_unique);
         }
+        // TODO: Calculer pour les autres soldes
 
-        println!("Espérance de gain à {} dés avec relance double: {}",
-                 idx_nb_des + 1, esperance_gain_relance_double);
-        // FIXME: Ce calcul n'est pas correct, car il sous-estime la probabilité
-        //        de perdre le solde initial, en ne considérant que la
-        //        possibilité de perdre lors du premier lancer (et pas de la
-        //        relance éventuelle).
-        //
-        //        Pour effectuer ce calcul, il me faudrait au moins une borne de
-        //        la probabilité de perdre le gain dans une stratégie de relance
-        //        optimale... ce qui dépend probablement du solde initial.
-        //
-        /* println!("Lancer clairement pertinent si solde préalable < {}",
-                 esperance_gain_relance_doubme / (1. - stats.proba_gain));
-        println!(); */
+        println!();
     }
 
-    // TODO: Faire l'étude de fonction espérance à différents soldes, ne pas
-    //       se cantonner au solde nul (qui n'est valide qu'à 6 dés)
+    println!("=== PRISE EN COMPTE DE RELANCES DOUBLES ===\n");
+
+    // FIXME: Forte répétition avec ci-dessus, à dédupliquer
+    for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
+        println!("Espérances de gain à {} dés avec relance double:", idx_nb_des + 1);
+
+        for (idx_solde, &solde_initial) in SOLDES.iter().enumerate() {
+            let mut esperance_gain_relance_double = 0.;
+
+            for stat_choix in stats.stats_choix.iter() {
+                let mut max_min_esperance_relance: Flottant = 0.;
+
+                for poss in stat_choix.choix.iter() {
+                    // Relance simple: on relance, et on prend ce qui sort
+                    // TODO: Copie du calcul précédent, peut être éliminée en mettant en cache
+                    let stats_nouv_des = &stats_jets[poss.nb_des_relance-1];
+                    let valeur_amortie = poss.valeur as Flottant * stats_nouv_des.proba_gain;
+                    let min_esperance_relance_simple = poss.min_esperance_relance_simple[0].get();
+                    max_min_esperance_relance = max_min_esperance_relance.max(min_esperance_relance_simple);
+
+                    // Relance double: on relance, et on relance encore
+                    // TODO: Exprimable en fonction des calculs précédents?
+                    let mut esperance_gain_relance_double_2 = 0.;
+                    for stats_choix_2 in stats_nouv_des.stats_choix.iter() {
+                        let mut max_min_esperance_relance_2: Flottant = 0.;
+                        for poss_2 in stats_choix_2.choix.iter() {
+                            let stats_nouv_des_2 = &stats_jets[poss_2.nb_des_relance-1];
+                            let valeur_amortie_2 = valeur_amortie * stats_nouv_des_2.proba_gain;
+                            let min_esperance_relance_2 = poss_2.min_esperance_relance_simple[idx_solde].get() + valeur_amortie_2;
+                            // Le résultat de ce max sera donc peut-être différent, donc à partir de là ça change
+                            max_min_esperance_relance_2 = max_min_esperance_relance_2.max(min_esperance_relance_2);
+                        }
+                        // ...et donc là ça change aussi
+                        let borne_inf_gain_2 = max_min_esperance_relance_2.max(stat_choix.valeur_max as Flottant);
+                        esperance_gain_relance_double_2 += borne_inf_gain_2 * stats_choix_2.proba;
+                    }
+                    max_min_esperance_relance = max_min_esperance_relance.max(esperance_gain_relance_double_2);
+                }
+
+                let borne_inf_gain = max_min_esperance_relance.max(stat_choix.valeur_max as Flottant);
+                esperance_gain_relance_double += borne_inf_gain * stat_choix.proba;
+            }
+
+            println!("- Solde initial {}: {}", solde_initial, esperance_gain_relance_double);
+        }
+
+        println!();
+    }
+
+    // TODO: Prendre en compte les relances triples, etc...
 }
