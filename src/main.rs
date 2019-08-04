@@ -114,8 +114,7 @@ fn main() {
                             }
                         }).collect::<Vec<_>>();
 
-                    // On annote chaque choix avec la valeur de sa combinaison
-                    // la plus chère
+                    // On annote chaque choix avec la valeur max de combinaison
                     let valeur_max = choix.iter().map(|p| p.valeur).max().unwrap();
 
                     // On transforme notre comptage en probabilité
