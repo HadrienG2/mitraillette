@@ -1,11 +1,52 @@
 use crate::{
+    Flottant,
     HistogrammeFaces,
+    NB_FACES,
     combinaison::Combinaison,
 };
 
+use std::collections::HashMap;
 
-// Cmbinaisons qu'on peut raisonnablement choisir pour un histogramme donné
-pub fn enumerer_combinaisons(histo: HistogrammeFaces) -> Vec<Combinaison> {
+
+// Enumérer les choix auxquels on peut faire face en lançant N dés, et leurs
+// probas. Le choix [] correspond à une absence de combinaisons (perdu!)
+pub fn enumerer_choix(nb_des: usize) -> HashMap<Vec<Combinaison>, Flottant> {
+    let nb_comb = NB_FACES.pow(nb_des as u32);
+    println!("Nombre de lancers possibles à {} dés: {}", nb_des, nb_comb);
+
+    // On énumère tous les lancers possibles pour ce nombre de dés
+    let mut comptage_choix = HashMap::new();
+    for num_comb in 0..nb_comb {
+        // On énumère les faces en traitant la combinaison comme un nombre
+        // en base NB_FACES (note: la face 1 est numérotée 0), et on calcule
+        // l'histogramme du nombre de dés étant tombé sur chaque face.
+        let mut reste = num_comb;
+        let mut histo = [0; NB_FACES];
+        for _ in 0..nb_des {
+            let idx_face = reste % NB_FACES;
+            histo[idx_face] += 1;
+            reste /= NB_FACES;
+        }
+
+        // On déduit de cet histogramme les combinaisons entre lesquelles
+        // on peut raisonnablement choisir...
+        let choix = enumerer_combinaisons(histo);
+
+        // ...et on en compte les occurences, dont on déduira la probabilité
+        let compte = comptage_choix.entry(choix.clone()).or_insert(0);
+        *compte += 1;
+    }
+
+    // Nous déduisons une table des choix auxquels on peut faire face, et du
+    // nombre de tirages associés. On transforme les comptes en probabilités.
+    let norme = 1. / (nb_comb as Flottant);
+    comptage_choix.into_iter()
+        .map(|(choix, compte)| (choix, compte as Flottant * norme))
+        .collect()
+}
+
+// Combinaisons qu'on peut raisonnablement choisir pour un histogramme donné
+fn enumerer_combinaisons(histo: HistogrammeFaces) -> Vec<Combinaison> {
     // Préparation du stockage
     let mut choix = Vec::new();
 

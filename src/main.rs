@@ -6,7 +6,6 @@ use crate::combinaison::{Combinaison, Valeur};
 use std::{
     cell::Cell,
     fmt::{self, Debug},
-    collections::HashMap,
 };
 
 
@@ -71,7 +70,7 @@ struct Possibilite {
 
 impl Debug for Possibilite {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(formatter, "{:?} ({}pt, rel. {}d)",
+        write!(formatter, "{:?} ({}pt, relance {}d)",
                self.comb, self.valeur, self.nb_des_relance)
     }
 }
@@ -87,51 +86,18 @@ fn main() {
 
     // On étudie des lancers de 1 à 6 dés
     for nb_des in 1..=NB_DES_TOT {
-        let nb_comb = NB_FACES.pow(nb_des as u32);
-        println!("Nombre de lancers possibles à {} dés: {}", nb_des, nb_comb);
+        // On énumère les choix de combinaisons face auxquels on peut se
+        // retrouver en lançant ce nombre de dés, et avec quelle probabilité.
+        let mut choix_et_probas = choix::enumerer_choix(nb_des);
 
-        // On énumère tous les lancers possibles pour ce nombre de dés
-        let mut comptage_choix = HashMap::new();
-        for num_comb in 0..nb_comb {
-            // On énumère les faces en traitant la combinaison comme un nombre
-            // en base NB_FACES (note: la face 1 est numérotée 0), et on calcule
-            // l'histogramme du nombre de dés étant tombé sur chaque face.
-            let mut reste = num_comb;
-            let mut histo = [0; NB_FACES];
-            for _ in 0..nb_des {
-                let idx_face = reste % NB_FACES;
-                histo[idx_face] += 1;
-                reste /= NB_FACES;
-            }
+        // On met à part le cas perdant, car il est spécial à plusieurs égards
+        // (on perd la mise précédente, on ne peut pas choisir de continuer)
+        let proba_perte = choix_et_probas.remove(&[][..]).unwrap();
 
-            // On déduit de cet histogramme les combinaisons entre lesquelles
-            // on peut raisonnablement choisir...
-            let choix = choix::enumerer_combinaisons(histo);
-
-            // ...et on en compte les occurences, dont on déduira la probabilité
-            let compte = comptage_choix.entry(choix.clone()).or_insert(0);
-            *compte += 1;
-        }
-
-        // Nous en tirons une table des choix auxquels on peut faire face, et du
-        // nombre de tirages où ils se présentent. On transforme les comptes en
-        // probas, et on complète la table des choix avec diverses annotations.
-        let norme = 1. / (nb_comb as Flottant);
-        let mut proba_perte = 0.;
+        // On complète les autres cas par des données utiles par la suite
         let stats_choix =
-            comptage_choix.into_iter()
-                .filter(|(choix, compte)| {
-                    // On met de côté le cas perdant, qui est spécial (on ne
-                    // peut pas choisir de continuer ou d'arrêter, on perd
-                    // toujours), on ne garde que sa probabilité.
-                    if choix == &[] {
-                        proba_perte = *compte as Flottant * norme;
-                        false
-                    } else {
-                        true
-                    }
-                })
-                .map(|(choix, compte)| {
+            choix_et_probas.into_iter()
+                .map(|(choix, proba)| {
                     // On annote chaque combinaison de chaque choix avec sa
                     // valeur et le nombre dés dont on dispose en cas de relance
                     let choix = choix.into_iter()
@@ -147,22 +113,18 @@ fn main() {
                                 comb,
                                 valeur,
                                 nb_des_relance,
-                                // FIXME: Il doit y avoir une manière plus élégante...
                                 min_esperance_relance_simple: Cell::new([0.; NB_SOLDES]),
                             }
                         }).collect::<Vec<_>>();
 
                     // On annote chaque choix avec la valeur de sa combinaison
                     // la plus chère
-                    let valeur_max = choix.iter()
-                                          .map(|poss| poss.valeur)
-                                          .max()
-                                          .unwrap_or(0);
+                    let valeur_max = choix.iter().map(|p| p.valeur).max().unwrap();
 
                     // On transforme notre comptage en probabilité
                     StatsChoix {
                         choix,
-                        proba: (compte as Flottant) * norme,
+                        proba,
                         valeur_max,
                     }
                 }).collect::<Vec<StatsChoix>>();
@@ -171,7 +133,7 @@ fn main() {
         // car elle dit quelle proportion de son solde on garde en moyenne quand
         // on relance les dés.
         let proba_gain = 1. - proba_perte;
-        println!("Probabilité de gagner: {}", proba_gain);
+        println!("Probabilité de gagner à {} dés: {}", nb_des, proba_gain);
 
         // On peut aussi calculer l'espérance de gain sans relance (on lance les
         // dés, on prend la combinaison la plus élevée, et on s'arrête là).
