@@ -64,7 +64,8 @@ struct Possibilite {
     // Nombre de dés avec lequel on peut relancer ensuite
     nb_des_relance: usize,
 
-    // Borne inférieure de l'espérance de gain si on relance une fois
+    // Borne inférieure de l'espérance de gain si on relance une fois, pour
+    // chaque solde initial considéré
     min_esperance_relance_simple: Cell<[Flottant; NB_SOLDES]>,
 }
 
