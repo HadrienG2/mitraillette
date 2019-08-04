@@ -183,7 +183,7 @@ fn main() {
         for stat_choix in stats.stats_choix.iter() {
             // Pour chaque choix, on calcule une borne inférieure de
             // l'espérance de gain en cas de relance, sans solde préalable.
-            let mut esperance_min_sans_solde: Flottant = 0.;
+            let mut max_min_esperance_relance: Flottant = 0.;
 
             // Pour cela, on étudie les relances pour chaque combinaison...
             for poss in stat_choix.choix.iter() {
@@ -196,23 +196,22 @@ fn main() {
 
                 // On y ajoute notre borne inférieure de ce qu'on espère
                 // gagner en relançant les dés restants
-                let esperance_min = stats_nouv_des.esperance_gain_sans_relancer;
+                let min_esperance_relance = valeur_amortie + stats_nouv_des.esperance_gain_sans_relancer;
 
-                // La somme est une borne inférieure de l'espérance de gain
-                // si on prend cette combinaison et la relance
-                let borne_inf_sans_solde = valeur_amortie + esperance_min;
-
-                // On prend le maximum de ces bornes inférieures sur tous
-                // les choix de combinaisons possibles
-                esperance_min_sans_solde = esperance_min_sans_solde.max(borne_inf_sans_solde);
+                // En calculant le maximum de ces bornes inférieures pour toutes
+                // les relances possibles, on en tire une borne inférieure de
+                // l'espérance de gain en cas de relance optimale.
+                max_min_esperance_relance = max_min_esperance_relance.max(min_esperance_relance);
 
                 // TODO: Stocker ces résultats intermédiaires pour permettre l'évaluation des relances doubles?
             }
 
-            // On en déduit si il faut clairement relancer, et on intègre le
-            // résultat maximal (valeur max si on s'arrête ou borne
-            // inférieure de l'espérance de gain en cas de relance)
-            let borne_inf_gain = esperance_min_sans_solde.max(stat_choix.valeur_max as Flottant);
+            // A ce stade, on sait ce qu'on gagne si on s'arrête là, et on a une
+            // borne inférieure de ce qu'on gagne en cas de relance optimale. En
+            // choisissant le plus avantageux des deux, on a une borne
+            // inférieure de ce qu'on gagne en choisissant ou non de relancer
+            // dans une stratégie de relance optimale.
+            let borne_inf_gain = max_min_esperance_relance.max(stat_choix.valeur_max as Flottant);
             esperance_gain_relance_unique += borne_inf_gain * stat_choix.proba;
         }
 
