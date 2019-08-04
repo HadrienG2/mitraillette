@@ -1,6 +1,5 @@
 use crate::{
     Flottant,
-    HistogrammeFaces,
     NB_FACES,
     combinaison::Combinaison,
 };
@@ -45,6 +44,9 @@ pub fn enumerer_choix(nb_des: usize) -> HashMap<Vec<Combinaison>, Flottant> {
         .collect()
 }
 
+// Histogramme d'un jet de dé par face (nb de dés tombé sur chaque face)
+type HistogrammeFaces = [usize; NB_FACES];
+
 // Combinaisons qu'on peut raisonnablement choisir pour un histogramme donné
 fn enumerer_combinaisons(histo: HistogrammeFaces) -> Vec<Combinaison> {
     // Préparation du stockage
@@ -88,6 +90,8 @@ fn enumerer_combinaisons(histo: HistogrammeFaces) -> Vec<Combinaison> {
     // Traitement des faces simples, selon certains principes:
     // - Il n'est pas rationnel de prendre un 5 sans avoir pris tous les 1
     // - Il n'est pas rationnel de compter trois 5 ou 1 autrement que comme brelan
+    // FIXME: Il faudra prendre en compte ces combinaisons lors de l'étude de
+    //        l'aterrissage.
     for nb_un in 1..=(histo[0]%3) {
         choix.push(Combinaison::FacesSimples{ nb_un, nb_cinq: 0 });
     }

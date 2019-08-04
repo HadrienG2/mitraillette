@@ -22,9 +22,6 @@ const SOLDES : [Valeur; NB_SOLDES] = [0, 50, 100, 150, 200, 250, 300, 400, 500,
                                       1300, 1400, 1500, 1600, 1700, 1800, 1900,
                                       2000, 2300, 2600, 2900, 3200];
 
-// Histogramme d'un jet de dé par face (nb de dés tombé sur chaque face)
-type HistogrammeFaces = [usize; NB_FACES];
-
 // On va compter les probas sur 64-bit au cas où, on diminuera si besoin
 type Flottant = f32;
 
@@ -94,7 +91,7 @@ fn main() {
         // (on perd la mise précédente, on ne peut pas choisir de continuer)
         let proba_perte = choix_et_probas.remove(&[][..]).unwrap();
 
-        // On complète les autres cas par des données utiles par la suite
+        // Pour les autres choix, on note quelques compléments
         let stats_choix =
             choix_et_probas.into_iter()
                 .map(|(choix, proba)| {
@@ -146,9 +143,13 @@ fn main() {
             stats_choix.iter()
                 .map(|s| s.valeur_max as Flottant * s.proba)
                 .sum();
-        println!("Espérance sans relancer:",);
+
+        // On peut en déduire, moyennant un certain solde initial, combien on
+        // peut espérer gagner en relançant et en s'arrêtant là.
+        println!("Espérance sans relancer:");
         for &solde_initial in SOLDES.iter() {
             let valeur_amortie = solde_initial as Flottant * proba_gain;
+            // FIXME: Stocker cela et le propager vers les calculs ultérieurs
             let min_esperance = valeur_amortie + esperance_gain_sans_relancer;
             println!("- Solde initial {}: {}", solde_initial, min_esperance);
         }
@@ -271,4 +272,6 @@ fn main() {
     }
 
     // TODO: Prendre en compte les relances triples, etc...
+    // TODO: Faire des combats de robots
+    // TODO: Etudier l'atterissage
 }
