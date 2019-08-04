@@ -102,13 +102,13 @@ fn main() {
             *compte += 1;
         }
 
-        // Nous en tirons une table des choix face auxquels on peut se
-        // retrouver, avec la probabilité de chacun et la valeur de la
-        // combinaison la plus chère.
+        // Nous en tirons une table des choix auxquels on peut faire face
         let norme = 1. / (nb_comb as Flottant);
         let mut stats_choix =
             comptage_choix.into_iter()
                 .map(|(choix, compte)| {
+                    // On annote chaque combinaison de chaque choix avec sa
+                    // valeur et le nombre dés dont on dispose en cas de relance
                     let choix = choix.into_iter()
                         .map(|comb| {
                             let valeur = comb.valeur();
@@ -124,10 +124,15 @@ fn main() {
                                 nb_des_relance,
                             }
                         }).collect::<Vec<_>>();
+
+                    // On annote chaque choix avec la valeur de sa combinaison
+                    // la plus chère
                     let valeur_max = choix.iter()
                                           .map(|poss| poss.valeur)
                                           .max()
                                           .unwrap_or(0);
+
+                    // On transforme notre comptage en probabilité
                     StatsChoix {
                         choix,
                         proba: (compte as Flottant) * norme,
