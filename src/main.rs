@@ -17,10 +17,11 @@ const NB_DES_TOT : usize = 6;
 const NB_FACES : usize = 6;
 
 // Soldes pour lesquels on estime les espérances de gain
-const NB_SOLDES : usize = 18;
+const NB_SOLDES : usize = 28;
 const SOLDES : [Valeur; NB_SOLDES] = [0, 50, 100, 150, 200, 250, 300, 400, 500,
                                       600, 700, 800, 900, 1000, 1100, 1200,
-                                      1300, 1400];
+                                      1300, 1400, 1500, 1600, 1700, 1800, 1900,
+                                      2000, 2300, 2600, 2900, 3200];
 
 // Histogramme d'un jet de dé par face (nb de dés tombé sur chaque face)
 type HistogrammeFaces = [usize; NB_FACES];
@@ -64,7 +65,7 @@ struct Possibilite {
     nb_des_relance: usize,
 
     // Borne inférieure de l'espérance de gain si on relance une fois
-    min_esperance_relance_simple: [Cell<Flottant>; NB_SOLDES],
+    min_esperance_relance_simple: Cell<[Flottant; NB_SOLDES]>,
 }
 
 impl Debug for Possibilite {
@@ -145,24 +146,8 @@ fn main() {
                                 comb,
                                 valeur,
                                 nb_des_relance,
-                                min_esperance_relance_simple: [Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.),
-                                                               Cell::new(0.)],
+                                // FIXME: Il doit y avoir une manière plus élégante...
+                                min_esperance_relance_simple: Cell::new([0.; NB_SOLDES]),
                             }
                         }).collect::<Vec<_>>();
 
@@ -247,7 +232,9 @@ fn main() {
 
                     // On garde cette quantité de côté, elle sera utile quand on
                     // s'autorisera à relancer deux fois.
-                    poss.min_esperance_relance_simple[idx_solde].set(min_esperance_relance);
+                    let mut nouv_esp_relance = poss.min_esperance_relance_simple.get();
+                    nouv_esp_relance[idx_solde] = min_esperance_relance;
+                    poss.min_esperance_relance_simple.set(nouv_esp_relance);
 
                     // En calculant le maximum de ces bornes inférieures pour toutes
                     // les relances possibles, on en tire une borne inférieure de
@@ -288,7 +275,7 @@ fn main() {
                     // TODO: Copie du calcul précédent, peut être éliminée en mettant en cache
                     let stats_nouv_des = &stats_jets[poss.nb_des_relance-1];
                     let valeur_amortie = poss.valeur as Flottant * stats_nouv_des.proba_gain;
-                    let min_esperance_relance_simple = poss.min_esperance_relance_simple[0].get();
+                    let min_esperance_relance_simple = poss.min_esperance_relance_simple.get()[idx_solde];
                     max_min_esperance_relance = max_min_esperance_relance.max(min_esperance_relance_simple);
 
                     // Relance double: on relance, et on relance encore
@@ -299,7 +286,7 @@ fn main() {
                         for poss_2 in stats_choix_2.choix.iter() {
                             let stats_nouv_des_2 = &stats_jets[poss_2.nb_des_relance-1];
                             let valeur_amortie_2 = valeur_amortie * stats_nouv_des_2.proba_gain;
-                            let min_esperance_relance_2 = poss_2.min_esperance_relance_simple[idx_solde].get() + valeur_amortie_2;
+                            let min_esperance_relance_2 = poss_2.min_esperance_relance_simple.get()[idx_solde] + valeur_amortie_2;
                             // Le résultat de ce max sera donc peut-être différent, donc à partir de là ça change
                             max_min_esperance_relance_2 = max_min_esperance_relance_2.max(min_esperance_relance_2);
                         }
