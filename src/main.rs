@@ -208,11 +208,13 @@ fn iterer_esperance(profondeur: usize, stats_jets: &[StatsJet], stats_jet_actuel
         // Après avoir obtenu des combinaisons, il faut choisir la stratégie
         // optimale entre empocher l'une des combinaisons disponibles (la plus
         // chère de préférence) et relancer les dés N fois. Les cas où on
-        // relance les dés 0..N fois ont déjà été traités, c'est donc seulement
+        // relance les dés <N fois ont déjà été traités, c'est donc seulement
         // le cas où on relance exactement N fois qui nous intéresse.
         let mut esperance_max = if profondeur == 0 {
+            // A zéro relances, le cas initial c'est celui où on ne lance pas
             solde_initial as Flottant
         } else {
+            // A N>0 relances, c'est celui où on lance N-1 fois
             stats_choix.esperance_max.borrow()[&(profondeur - 1, solde_initial)]
         };
 
