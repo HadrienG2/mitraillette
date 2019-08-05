@@ -4,7 +4,7 @@ mod combinaison;
 use crate::combinaison::{Combinaison, Valeur};
 
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::HashMap,
     fmt::{self, Debug},
 };
@@ -32,7 +32,10 @@ struct StatsJet {
     stats_choix: Vec<StatsChoix>,
 
     // Espérance si on lance ce nombre de dés et s'arrête là
-    esperance_sans_relancer: [Flottant; NB_SOLDES],
+    esperance_sans_relance: [Flottant; NB_SOLDES],
+
+    // Espérance à la dernière profondeur de relance calculée
+    esperance_actuelle: Cell<[Flottant; NB_SOLDES]>,
 
     // Probabilité de tirer une combinaison gagnante
     proba_gain: Flottant,
@@ -146,7 +149,7 @@ fn main() {
 
         // On intègre ensuite la présence d'un solde préalable en prenant en
         // compte la probabilité de perdre ce solde.
-        let mut esperance_sans_relancer = [0.; NB_SOLDES];
+        let mut esperance_sans_relance = [0.; NB_SOLDES];
         println!("Espérance sans relancer:");
         for (idx_solde, &solde_initial) in SOLDES.iter().enumerate() {
             let valeur_amortie = solde_initial as Flottant * proba_gain;
@@ -154,14 +157,15 @@ fn main() {
             let esperance_gain = esperance - solde_initial as Flottant;
             println!("- Solde initial {}: Espérance >= {} (Gain moyen >= {:+})",
                      solde_initial, esperance, esperance_gain);
-            esperance_sans_relancer[idx_solde] = esperance;
+            esperance_sans_relance[idx_solde] = esperance;
         }
 
         // Nous gardons de côté ces calculs, on a besoin de les avoir effectués
         // pour tous les nombres de dés avant d'aller plus loin.
         stats_jets.push(StatsJet {
             stats_choix,
-            esperance_sans_relancer,
+            esperance_sans_relance,
+            esperance_actuelle: Cell::new(esperance_sans_relance),
             proba_gain,
         });
 
@@ -198,7 +202,7 @@ fn main() {
                     let valeur_amortie = poss.valeur as Flottant * stats_des_relance.proba_gain;
 
                     // A cette correction près, on est revenu au cas précédent
-                    let esperance_relance = valeur_amortie + stats_des_relance.esperance_sans_relancer[idx_solde];
+                    let esperance_relance = valeur_amortie + stats_des_relance.esperance_sans_relance[idx_solde];
 
                     // ..et on peut maintenant dire si cette relance est plus
                     // profitable que les autres options considérées
@@ -217,9 +221,16 @@ fn main() {
 
             // On affiche le résultat
             let esperance_gain = esperance_relance_unique - solde_initial as Flottant;
-            println!("- Solde initial {}: Esperance >= {} (Gain moyen >= {})",
-                     solde_initial, esperance_relance_unique, esperance_gain);
-            assert!(esperance_relance_unique > stats.esperance_sans_relancer[idx_solde]);
+            print!("- Solde initial {}: Esperance >= {} (Gain moyen >= {}",
+                   solde_initial, esperance_relance_unique, esperance_gain);
+
+            // On vérifie que les espérances vont bien croissantes
+            let mut esperances = stats.esperance_actuelle.get();
+            assert!(esperance_relance_unique >= esperances[idx_solde]);
+            if esperance_relance_unique == esperances[idx_solde] { print!(" => STABLE"); }
+            esperances[idx_solde] = esperance_relance_unique;
+            stats.esperance_actuelle.set(esperances);
+            println!(")");
         }
 
         println!();
@@ -267,7 +278,7 @@ fn main() {
                         for poss_2 in stats_choix_2.choix.iter() {
                             let stats_des_relance_2 = &stats_jets[poss_2.nb_des_relance-1];
                             let valeur_amortie_2 = (poss.valeur + poss_2.valeur) as Flottant * stats_des_relance_2.proba_gain;
-                            let esperance_relance_2 = valeur_amortie_2 + stats_des_relance_2.esperance_sans_relancer[idx_solde];
+                            let esperance_relance_2 = valeur_amortie_2 + stats_des_relance_2.esperance_sans_relance[idx_solde];
                             esperance_max_2 = esperance_max_2.max(esperance_relance_2);
                         }
                         esperance_relance_double_2 += esperance_max_2 * stats_choix_2.proba;
@@ -281,11 +292,15 @@ fn main() {
             }
 
             let esperance_gain = esperance_relance_double - solde_initial as Flottant;
-            println!("- Solde initial {}: Esperance >= {} (Gain moyen >= {})",
-                     solde_initial, esperance_relance_double, esperance_gain);
-             // FIXME: Stocker espérance de gain à relance unique et comparer
-             // FIXME: Si ça se stabilise, le calcul semble converger
-            assert!(esperance_relance_double > stats.esperance_sans_relancer[idx_solde]);
+            print!("- Solde initial {}: Esperance >= {} (Gain moyen >= {}",
+                   solde_initial, esperance_relance_double, esperance_gain);
+
+            let mut esperances = stats.esperance_actuelle.get();
+            assert!(esperance_relance_double >= esperances[idx_solde]);
+            if esperance_relance_double == esperances[idx_solde] { print!(" => STABLE"); }
+            esperances[idx_solde] = esperance_relance_double;
+            stats.esperance_actuelle.set(esperances);
+            println!(")");
         }
 
         println!();
