@@ -62,9 +62,6 @@ struct Possibilite {
 
     // Nombre de dés avec lequel on peut relancer ensuite
     nb_des_relance: usize,
-
-    // Espérance si on garde cette combinaison et relance une fois
-    esperance_relance_simple: Cell<[Option<Flottant>; NB_SOLDES]>,
 }
 
 impl Debug for Possibilite {
@@ -112,7 +109,6 @@ fn main() {
                                 comb,
                                 valeur,
                                 nb_des_relance,
-                                esperance_relance_simple: Cell::new([None; NB_SOLDES]),
                             }
                         }).collect::<Vec<_>>();
 
@@ -203,12 +199,6 @@ fn main() {
                     // A cette correction près, on est revenu au cas précédent
                     let esperance_relance = valeur_amortie + stats_des_relance.esperance_sans_relancer[idx_solde];
 
-                    // Ainsi, on sait combien on gagne en moyenne en relançant
-                    // une fois. On garde ça de côté pour les relances doubles.
-                    let mut esperance_relance_simple = poss.esperance_relance_simple.get();
-                    esperance_relance_simple[idx_solde] = Some(esperance_relance);
-                    poss.esperance_relance_simple.set(esperance_relance_simple);
-
                     // ..et on peut maintenant dire si cette relance est plus
                     // profitable que les autres options considérées
                     *esperance_max = esperance_max.max(esperance_relance);
@@ -255,15 +245,12 @@ fn main() {
                     let mut esperance_relance_double_2 = 0.;
                     let stats_des_relance = &stats_jets[poss.nb_des_relance-1];
                     for stats_choix_2 in stats_des_relance.stats_choix.iter() {
-                        // Ressemble furieusement au traitement des relances simples, mais l'espérance max "en gardant tout" augmente...
+                        // Ressemble furieusement au traitement des relances simples, mais avec un offset...
                         let mut esperance_max_2: Flottant = (solde_initial + poss.valeur + stats_choix_2.valeur_max) as Flottant;
                         for poss_2 in stats_choix_2.choix.iter() {
                             let stats_des_relance_2 = &stats_jets[poss_2.nb_des_relance-1];
-                            // ...et on a une correction liée à la combinaison précédente
-                            let valeur_amortie_2 = poss.valeur as Flottant * stats_des_relance_2.proba_gain;
-                            // ...pour le reste, on peut réutiliser les résultats
-                            // FIXME: Garder de côté esperance_relance_2 pour le calcul à <=3 relances
-                            let esperance_relance_2 = poss_2.esperance_relance_simple.get()[idx_solde].unwrap() + valeur_amortie_2;
+                            let valeur_amortie_2 = (poss.valeur + poss_2.valeur) as Flottant * stats_des_relance_2.proba_gain;
+                            let esperance_relance_2 = valeur_amortie_2 + stats_des_relance_2.esperance_sans_relancer[idx_solde];
                             esperance_max_2 = esperance_max_2.max(esperance_relance_2);
                         }
                         esperance_relance_double_2 += esperance_max_2 * stats_choix_2.proba;
