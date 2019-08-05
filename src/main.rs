@@ -246,6 +246,7 @@ fn main() {
                     let stats_des_relance = &stats_jets[poss.nb_des_relance-1];
                     for stats_choix_2 in stats_des_relance.stats_choix.iter() {
                         // Ressemble furieusement au traitement des relances simples, mais avec un offset...
+                        // FIXME: Memoiser esperance_max_2 pour parfaire la ressemblance
                         let mut esperance_max_2: Flottant = (solde_initial + poss.valeur + stats_choix_2.valeur_max) as Flottant;
                         for poss_2 in stats_choix_2.choix.iter() {
                             let stats_des_relance_2 = &stats_jets[poss_2.nb_des_relance-1];
