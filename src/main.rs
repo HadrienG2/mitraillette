@@ -32,7 +32,7 @@ struct StatsJet {
 
     // Espérance de gain sans relancer, pour ce nombre de dés et chaque solde
     // initial considéré
-    esperance_gain_sans_relancer: [Flottant; NB_SOLDES],
+    esperance_sans_relancer: [Flottant; NB_SOLDES],
 
     // Probabilité de tirer une combinaison gagnante
     proba_gain: Flottant,
@@ -127,39 +127,34 @@ fn main() {
                 }).collect::<Vec<StatsChoix>>();
 
         // La probabilité de gagner est plus utile que la probabilité de perdre,
-        // car elle dit quelle proportion de son solde on garde en moyenne quand
-        // on relance les dés.
+        // elle dit quelle proportion du solde on garde en moyenne en relançant
         let proba_gain = 1. - proba_perte;
         println!("Probabilité de gagner à {} dés: {}", nb_des, proba_gain);
 
-        // On peut aussi calculer l'espérance de gain sans relance (on lance les
-        // dés, on prend la combinaison la plus élevée, et on s'arrête là).
-        //
-        // C'est une borne inférieure de l'espérance de gain réelle, puisqu'on
-        // ne relancera pour gagner plus que si la relance rapporte en moyenne
-        // plus que le gain maximal obtenu en s'arrêtant là.
-        //
+        // On peut aussi calculer combien on gagne en moyenne si on lance N dés
+        // et s'arrête là. C'est une borne inférieure de ce qu'on peut gagner
+        // dans une stratégie optimale avec relance, en partant d'un solde nul.
         let esperance_jet : Flottant =
             stats_choix.iter()
                 .map(|s| s.valeur_max as Flottant * s.proba)
                 .sum();
 
-        // On peut en déduire, moyennant un certain solde initial, combien on
-        // peut espérer gagner en relançant et en s'arrêtant là.
-        let mut esperance_gain_sans_relancer = [0.; NB_SOLDES];
+        // On intègre ensuite la présence d'un solde préalable en prenant en
+        // compte la probabilité de perdre ce solde.
+        let mut esperance_sans_relancer = [0.; NB_SOLDES];
         println!("Espérance sans relancer:");
         for (idx_solde, &solde_initial) in SOLDES.iter().enumerate() {
             let valeur_amortie = solde_initial as Flottant * proba_gain;
-            let min_esperance = valeur_amortie + esperance_jet;
-            println!("- Solde initial {}: {}", solde_initial, min_esperance);
-            esperance_gain_sans_relancer[idx_solde] = min_esperance;
+            let esperance = valeur_amortie + esperance_jet;
+            println!("- Solde initial {}: Espérance >= {}", solde_initial, esperance);
+            esperance_sans_relancer[idx_solde] = esperance;
         }
 
         // Nous gardons de côté ces calculs, on a besoin de les avoir effectués
         // pour tous les nombres de dés avant d'aller plus loin.
         stats_jets.push(StatsJet {
             stats_choix,
-            esperance_gain_sans_relancer,
+            esperance_sans_relancer,
             proba_gain,
         });
 
@@ -195,7 +190,7 @@ fn main() {
                     // On y ajoute notre borne inférieure de ce qu'on espère
                     // gagner en relançant les dés restants une seule fois,
                     // calcul qu'on a déjà effectué précédemment.
-                    let min_esperance_relance = valeur_amortie + stats_nouv_des.esperance_gain_sans_relancer[idx_solde];
+                    let min_esperance_relance = valeur_amortie + stats_nouv_des.esperance_sans_relancer[idx_solde];
 
                     // On garde cette quantité de côté, elle sera utile quand on
                     // s'autorisera à relancer deux fois.
@@ -222,7 +217,7 @@ fn main() {
             }
 
             println!("- Solde initial {}: {}", solde_initial, esperance_gain_relance_unique);
-            assert!(esperance_gain_relance_unique > stats.esperance_gain_sans_relancer[idx_solde]);
+            assert!(esperance_gain_relance_unique > stats.esperance_sans_relancer[idx_solde]);
         }
         // TODO: Calculer pour les autres soldes
 
@@ -272,7 +267,7 @@ fn main() {
             println!("- Solde initial {}: {}", solde_initial, esperance_gain_relance_double);
              // FIXME: Stocker espérance de gain à relance unique et comparer
              // FIXME: Si ça se stabilise, le calcul semble converger
-            assert!(esperance_gain_relance_double > stats.esperance_gain_sans_relancer[idx_solde]);
+            assert!(esperance_gain_relance_double > stats.esperance_sans_relancer[idx_solde]);
         }
 
         println!();
