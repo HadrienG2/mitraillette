@@ -4,7 +4,8 @@ mod combinaison;
 use crate::combinaison::{Combinaison, Valeur};
 
 use std::{
-    cell::Cell,
+    cell::RefCell,
+    collections::HashMap,
     fmt::{self, Debug},
 };
 
@@ -48,8 +49,13 @@ struct StatsChoix {
     // Valeur de la combinaison la plus chère qu'on puisse choisir
     valeur_max: Valeur,
 
-    // Espérance de l'option la plus profitable considérée jusqu'à présent
-    esperance_max: Cell<[Flottant; NB_SOLDES]>,
+    // Pour un solde initial donné, espérance de la possibilité la plus
+    // profitable aux profondeurs de relance considérées précédemment
+    esperance_max: HashMap<Valeur, Flottant>,
+
+    // Tampon permettant de construire esperance_max pour la profondeur de
+    // relance suivante sans perturber le calcul de la profondeur en cours
+    future_esperance_max: RefCell<HashMap<Valeur, Flottant>>,
 }
 
 // L'une des possibilités entre lesquelles il faut choisir
@@ -115,21 +121,13 @@ fn main() {
                     // On annote chaque choix avec la valeur max de combinaison
                     let valeur_max = choix.iter().map(|p| p.valeur).max().unwrap();
 
-                    // Face à ce choix, il est évident qu'on peut au moins
-                    // espérer toucher notre solde initial et la valeur de la
-                    // combinaison la plus chère: il suffit de s'arrêter là.
-                    let mut esperance_max = [valeur_max as Flottant; NB_SOLDES];
-                    for (esp_max, solde) in esperance_max.iter_mut().zip(SOLDES.iter()) {
-                        *esp_max += *solde as Flottant;
-                    }
-                    let esperance_max = Cell::new(esperance_max);
-
                     // On transforme notre comptage en probabilité
                     StatsChoix {
                         choix,
                         proba,
                         valeur_max,
-                        esperance_max,
+                        esperance_max: HashMap::new(),
+                        future_esperance_max: RefCell::new(HashMap::new()),
                     }
                 }).collect::<Vec<StatsChoix>>();
 
@@ -184,8 +182,11 @@ fn main() {
             for stats_choix in stats.stats_choix.iter() {
                 // Pour chaque choix, on détermine l'espérance de l'option la
                 // plus profitable entre garder ses gains et relancer une fois
-                let mut esperance_max_vs_solde = stats_choix.esperance_max.get();
-                let esperance_max = &mut esperance_max_vs_solde[idx_solde];
+                let mut esperance_max =
+                    stats_choix.esperance_max
+                        .get(&solde_initial)
+                        .cloned()
+                        .unwrap_or((solde_initial + stats_choix.valeur_max) as Flottant);
 
                 // Pour cela, on étudie toutes les relances simples possibles...
                 for poss in stats_choix.choix.iter() {
@@ -201,17 +202,17 @@ fn main() {
 
                     // ..et on peut maintenant dire si cette relance est plus
                     // profitable que les autres options considérées
-                    *esperance_max = esperance_max.max(esperance_relance);
+                    esperance_max = esperance_max.max(esperance_relance);
                 }
 
                 // En intégrant les stratégies optimales sur tous les lancers de
                 // dés possibles, on en déduit l'espérance de gain pour une
                 // stratégie optimale à au plus une relance.
-                esperance_relance_unique += *esperance_max * stats_choix.proba;
+                esperance_relance_unique += esperance_max * stats_choix.proba;
 
                 // On garde de côté notre espérance max pour y intégrer les
                 // relances doubles, triples, etc... ultérieurement
-                stats_choix.esperance_max.set(esperance_max_vs_solde);
+                stats_choix.future_esperance_max.borrow_mut().insert(solde_initial, esperance_max);
             }
 
             // On affiche le résultat
@@ -222,6 +223,13 @@ fn main() {
         }
 
         println!();
+    }
+
+    // Après chaque remplissage, on propage future_esperance_max vers esperance_max
+    for stats in stats_jets.iter_mut() {
+        for stats_choix in stats.stats_choix.iter_mut() {
+            stats_choix.esperance_max = stats_choix.future_esperance_max.borrow().clone();
+        }
     }
 
     println!("=== PRISE EN COMPTE DE RELANCES DOUBLES ===\n");
@@ -236,9 +244,13 @@ fn main() {
             let mut esperance_relance_double = 0.;
 
             for stats_choix in stats.stats_choix.iter() {
-                // L'espérance max gardée précédemment inclut les relances simples
-                let mut esperance_max_vs_solde = stats_choix.esperance_max.get();
-                let esperance_max = &mut esperance_max_vs_solde[idx_solde];
+                // L'espérance max gardée précédemment inclut les relances
+                // simples, on n'a donc plus qu'à calculer les relances doubles.
+                let mut esperance_max =
+                    stats_choix.esperance_max
+                        .get(&solde_initial)
+                        .cloned()
+                        .unwrap_or((solde_initial + stats_choix.valeur_max) as Flottant);
 
                 // On a donc juste à traiter les relances doubles
                 for poss in stats_choix.choix.iter() {
@@ -246,8 +258,12 @@ fn main() {
                     let stats_des_relance = &stats_jets[poss.nb_des_relance-1];
                     for stats_choix_2 in stats_des_relance.stats_choix.iter() {
                         // Ressemble furieusement au traitement des relances simples, mais avec un offset...
-                        // FIXME: Memoiser esperance_max_2 pour parfaire la ressemblance
-                        let mut esperance_max_2: Flottant = (solde_initial + poss.valeur + stats_choix_2.valeur_max) as Flottant;
+                        let solde_initial_2 = solde_initial + poss.valeur;
+                        let mut esperance_max_2 =
+                            stats_choix.esperance_max
+                                .get(&solde_initial_2)
+                                .cloned()
+                                .unwrap_or((solde_initial_2 + stats_choix.valeur_max) as Flottant);
                         for poss_2 in stats_choix_2.choix.iter() {
                             let stats_des_relance_2 = &stats_jets[poss_2.nb_des_relance-1];
                             let valeur_amortie_2 = (poss.valeur + poss_2.valeur) as Flottant * stats_des_relance_2.proba_gain;
@@ -255,12 +271,13 @@ fn main() {
                             esperance_max_2 = esperance_max_2.max(esperance_relance_2);
                         }
                         esperance_relance_double_2 += esperance_max_2 * stats_choix_2.proba;
+                        stats_choix.future_esperance_max.borrow_mut().insert(solde_initial_2, esperance_max_2);
                     }
-                    *esperance_max = esperance_max.max(esperance_relance_double_2);
+                    esperance_max = esperance_max.max(esperance_relance_double_2);
                 }
 
-                esperance_relance_double += *esperance_max * stats_choix.proba;
-                stats_choix.esperance_max.set(esperance_max_vs_solde);
+                esperance_relance_double += esperance_max * stats_choix.proba;
+                stats_choix.future_esperance_max.borrow_mut().insert(solde_initial, esperance_max);
             }
 
             let esperance_gain = esperance_relance_double - solde_initial as Flottant;
@@ -272,6 +289,13 @@ fn main() {
         }
 
         println!();
+    }
+
+    // Après chaque remplissage, on propage future_esperance_max vers esperance_max
+    for stats in stats_jets.iter_mut() {
+        for stats_choix in stats.stats_choix.iter_mut() {
+            stats_choix.esperance_max = stats_choix.future_esperance_max.borrow().clone();
+        }
     }
 
     // TODO: Prendre en compte les relances triples, etc...
