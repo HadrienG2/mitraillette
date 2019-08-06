@@ -19,17 +19,18 @@ const NB_FACES : usize = 6;
 // Nombre maximal de relances qu'on peut considérer
 const PROFONDEUR_MAX : usize = 30;
 
-// Soldes pour lesquels on estime les espérances de gain
-const NB_SOLDES : usize = 15;
-const SOLDES : [Valeur; NB_SOLDES] = [0, 50, 100, 150, 200, 250, 300, 350, 400,
-                                      950, 1000, 2000, 2850, 2900, 10000];
+// Mises pour lesquelles on estime les espérances de gain à chaque nombre de dés
+const NB_MISES : usize = 15;
+const MISES : [Valeur; NB_MISES] = [0, 50, 100, 150, 200, 250, 300, 350, 400,
+                                    950, 1000, 2000, 2850, 2900, 10000];
 
-// ...mais tous les soldes ne sont pas dignes d'être affichés
-fn solde_impossible(solde: Valeur, nb_des: usize) -> bool {
-    let solde = solde as usize;
+// Toutes les combinaisons (mise, nb de dés) ne sont pas possibles. Par exemple,
+// si on lance à un dé, on a nécessairement accumulé au moins 5x50 = 250 points
+fn mise_impossible(mise: Valeur, nb_des: usize) -> bool {
+    let mise = mise as usize;
     match nb_des {
-        NB_DES_TOT => solde > 0 && solde < NB_DES_TOT * 50,
-        _ => solde < (NB_DES_TOT - nb_des) * 50,
+        NB_DES_TOT => mise > 0 && mise < NB_DES_TOT * 50,
+        _ => mise < (NB_DES_TOT - nb_des) * 50,
     }
 }
 
@@ -41,8 +42,8 @@ struct StatsJet {
     // Choix auxquels on peut faire face, si on tire des combinaisons
     stats_choix: Vec<StatsChoix>,
 
-    // Espérance à la dernière profondeur de relance calculée
-    esperance_actuelle: Cell<[Flottant; NB_SOLDES]>,
+    // Espérance pour une mise donnée au dernier nombre de relances considéré
+    esperance_actuelle: Cell<[Flottant; NB_MISES]>,
 }
 
 // L'un dex choix face auxquels un jet de dés peut nous placer
@@ -54,7 +55,7 @@ struct StatsChoix {
     proba: Flottant,
 
     // On garde en cache l'espérance de la stratégie optimale pour un nombre
-    // de relances <= N donné et un certain solde initial avant de jouer
+    // de relances <= N donné et une certaine mise initiale
     esperance_max: RefCell<HashMap<(usize, Valeur), Flottant>>,
 }
 
@@ -126,8 +127,8 @@ fn main() {
                     }
                 }).collect::<Vec<StatsChoix>>();
 
-        // La probabilité de gagner est plus utile que la probabilité de perdre,
-        // elle dit quelle proportion du solde on garde en moyenne en relançant
+        // La probabilité de gagner est plus utile que celle de perdre, car elle
+        // dit quelle proportion de la mise on garde en moyenne en relançant
         let proba_gain = 1. - proba_perte;
         println!("Probabilité de gagner à {} dés: {}", nb_des, proba_gain);
 
@@ -135,47 +136,52 @@ fn main() {
         // pour tous les nombres de dés avant d'aller plus loin.
         stats_jets.push(StatsJet {
             stats_choix,
-            esperance_actuelle: Cell::new([0.; NB_SOLDES]),
+            esperance_actuelle: Cell::new([0.; NB_MISES]),
         });
 
         println!();
     }
 
-    // Maintenant, on explore le graphe de décision avec un nombre croissant
-    // de relances autorisées (...et un temps de calcul qui explose)
+    // On calcule l'espérance de gain en s'autorisant à relancer les dés au plus
+    // N fois avec N croissant (initialement 0: on ne relance jamais).
     for num_relances in 0..=PROFONDEUR_MAX {
         println!("=== JETS AVEC <={} RELANCES ===\n", num_relances);
         let mut continuer = false;
 
-        // Maintenant, on reprend le calcul en autorisant une relance
+        // On fait ça pour chaque nombre de dés...
         for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
             let nb_des = idx_nb_des + 1;
             println!("Espérances à {} dés:", nb_des);
 
-            // Comme précédemment, on considère différents soldes de départ
-            for (idx_solde, &solde_initial) in SOLDES.iter().enumerate() {
-                // On calcule l'espérance à profondeur N récursivement (cf ci-dessous)
-                let esperance_avec_relances = iterer_esperance(num_relances, &stats_jets[..], stats, solde_initial);
+            // ...et pour chaque mise initiale considérée
+            for (idx_mise, &mise) in MISES.iter().enumerate() {
+                // On rejette les combinaisons (mise, nb de dés) impossibles
+                if mise_impossible(mise, nb_des) { continue; }
 
-                // On vérifie que les espérances calculées sont croissantes
+                // On calcule l'espérance de gain récursivement (ci-dessous)
+                let esperance_avec_relances = iterer_esperance(num_relances, &stats_jets[..], stats, mise);
+
+                // On affiche le résultat brut
+                let esperance_gain = esperance_avec_relances - mise as Flottant;
+                print!("- Mise {}: Esperance >= {} (Gain moyen >= {:+}, ",
+                       mise, esperance_avec_relances, esperance_gain);
+
+                // On regarde l'évolution par rapport au nombre de lancer max
+                // considéré précédemment
                 let mut esperances = stats.esperance_actuelle.get();
-                let delta = esperance_avec_relances - esperances[idx_solde];
-                assert!(delta >= 0.);
-                if delta > 0. { continuer = true; }
-                esperances[idx_solde] = esperance_avec_relances;
+                let delta = esperance_avec_relances - esperances[idx_mise];
+                esperances[idx_mise] = esperance_avec_relances;
                 stats.esperance_actuelle.set(esperances);
 
-                // Si le résultat a un sens pour les humains, on l'affiche
-                if solde_impossible(solde_initial, nb_des) { continue; }
-                let esperance_gain = esperance_avec_relances - solde_initial as Flottant;
-                print!("- Solde initial {}: Esperance >= {} (Gain moyen >= {:+}, ",
-                       solde_initial, esperance_avec_relances, esperance_gain);
+                // Cette évolution doit etre positive, on continue d'itérer tant
+                // qu'elle est non nulle (précision flottant pas atteinte)
+                assert!(delta >= 0.);
                 if delta > 0. {
-                    print!("Delta = {:+}", delta);
+                    println!("Delta = {:+})", delta);
+                    continuer = true;
                 } else {
-                    print!("STABLE");
+                    println!("STABLE)");
                 }
-                println!(")");
             }
 
             println!();
@@ -189,12 +195,12 @@ fn main() {
 }
 
 // Calcule de l'espérance de gain pour une stratégie où on relance les dés
-// jusqu'à N fois en partant d'un certain solde initial et nombre de dés
+// jusqu'à N fois en partant d'une certaine mise et d'un certain nombre de dés
 //
 // NOTE: Pour une profondeur N donnée, le code suppose que toutes les
 // profondeurs 0 <= k < N précédentes ont déjà été étudiées.
 //
-fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actuel: &StatsJet, solde_initial: Valeur) -> Flottant {
+fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actuel: &StatsJet, mise: Valeur) -> Flottant {
     // Le but est de déterminer une espérance de gain pour un certain lancer
     let mut esperance_lancer = 0.;
 
@@ -202,7 +208,7 @@ fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actu
     for stats_choix in stats_jet_actuel.stats_choix.iter() {
         // Est-ce que, par chance, j'ai déjà étudié ce cas à une itération
         // précédente du calcul en cours?
-        if let Some(esperance_max) = stats_choix.esperance_max.borrow().get(&(num_relances, solde_initial)) {
+        if let Some(esperance_max) = stats_choix.esperance_max.borrow().get(&(num_relances, mise)) {
             esperance_lancer += esperance_max * stats_choix.proba;
             continue;
         }
@@ -214,7 +220,7 @@ fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actu
         // le cas où on relance exactement N fois qui nous intéresse.
         let mut esperance_max = if num_relances == 0 {
             // A zéro relances, le cas initial c'est celui où on ne lance pas
-            solde_initial as Flottant
+            mise as Flottant
         } else {
             // A N>0 relances, c'est celui où on lance N-1 fois
             //
@@ -222,7 +228,7 @@ fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actu
             //       plus avoir besoin de lancer iterer_esperance à toutes les
             //       profondeurs précédentes au préalable.
             //
-            stats_choix.esperance_max.borrow()[&(num_relances - 1, solde_initial)]
+            stats_choix.esperance_max.borrow()[&(num_relances - 1, mise)]
         };
 
         // On étudie ensuite toutes les possibilités de relance une à une, dans
@@ -232,14 +238,14 @@ fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actu
             // Est-ce qu'on a atteint le nombre de relances désiré?
             let esperance_relance = if num_relances == 0 {
                 // Si oui, on prend les gains systématiquement.
-                (solde_initial + poss.valeur) as Flottant
+                (mise + poss.valeur) as Flottant
             } else {
-                // Sinon, ajoute le solde à notre gain et relance à notre
-                // nouveau nombre de dés, en décrémentant le budget relance
+                // Sinon, on ajoute la valeur à la mise et relance au nouveau
+                // nombre de dés, en décrémentant le budget relance
                 iterer_esperance(num_relances - 1,
                                  stats_jets,
                                  &stats_jets[poss.nb_des_relance - 1],
-                                 solde_initial + poss.valeur)
+                                 mise + poss.valeur)
             };
 
             // Au fil du temps, on garde une trace de la stratégie considérée
@@ -252,7 +258,7 @@ fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actu
         // permet d'étudier les cas où on relance de 0 à N fois en étudiant
         // juste le cas où on relance exactement N fois.
         assert_eq!(stats_choix.esperance_max.borrow_mut()
-                       .insert((num_relances, solde_initial), esperance_max),
+                       .insert((num_relances, mise), esperance_max),
                    None);
 
         // Et en intégrant les espérances de gain des stratégies optimales
