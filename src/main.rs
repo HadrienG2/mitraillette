@@ -194,8 +194,18 @@ fn main() {
     }
     // TODO: Quand on a fini d'itérer sur l'espérance, on peut jeter les
     //       espérances max à profondeur inférieures, elles ne serviront plus.
+    // TODO: Si on est sûr de ce calcul, on peut condenser son affichage en ne
+    //       sortant que le résultat final (et peut-être aussi la table des
+    //       espérances max par choix, mais elle peut être condensée en une
+    //       table par lancer de dés et par mise possible)
 
     // TODO: Etudier l'atterissage
+    //
+    //       On va commencer par déterminer à partir de quel score on a une
+    //       chance maximale de finir en un tour. Après, on pourra considérer
+    //       la fin en plusieurs tours, et ainsi remonter de proche en proche
+    //       à une stratégie optimale sur l'ensemble de la partie, à nombre de
+    //       points fini, si on explose pas le temps de calcul avant.
 
     // TODO: Etudier les autres effets de score fini
     // TODO: Faire des combats de robots
