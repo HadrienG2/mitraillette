@@ -10,8 +10,8 @@ use std::collections::HashMap;
 // Enumérer les choix auxquels on peut faire face en lançant N dés, et leurs
 // probas. Le choix [] correspond à une absence de combinaisons (perdu!)
 pub fn enumerer_choix(nb_des: usize) -> HashMap<Vec<Combinaison>, Flottant> {
+    // Le nombre de combinaisons est connu (et suffisamment faible)
     let nb_comb = NB_FACES.pow(nb_des as u32);
-    println!("Nombre de lancers possibles à {} dés: {}", nb_des, nb_comb);
 
     // On énumère tous les lancers possibles pour ce nombre de dés
     let mut comptage_choix = HashMap::new();
