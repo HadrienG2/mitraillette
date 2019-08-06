@@ -16,13 +16,11 @@ const NB_DES_TOT : usize = 6;
 // Nombre de faces par dé
 const NB_FACES : usize = 6;
 
-// Nombre maximal de relances qu'on peut considérer
-const PROFONDEUR_MAX : usize = 30;
-
 // Mises pour lesquelles on estime les espérances de gain à chaque nombre de dés
-const NB_MISES : usize = 15;
+const NB_MISES : usize = 24;
 const MISES : [Valeur; NB_MISES] = [0, 50, 100, 150, 200, 250, 300, 350, 400,
-                                    950, 1000, 2000, 2850, 2900, 10000];
+                                    450, 500, 700, 900, 950, 1000, 1300, 1600,
+                                    2000, 2300, 2600, 2800, 2850, 2900, 10000];
 
 // Toutes les combinaisons (mise, nb de dés) ne sont pas possibles. Par exemple,
 // si on lance à un dé, on a nécessairement accumulé au moins 5x50 = 250 points
@@ -145,18 +143,21 @@ fn main() {
         println!();
     }
 
+    println!("=== ETUDE DES RELANCES ===\n");
+
+    println!("En attente de convergence...");
+
     // On calcule l'espérance de gain en s'autorisant à relancer les dés au plus
-    // N fois avec N croissant (initialement 0: on ne relance jamais).
-    for num_relances in 0..=PROFONDEUR_MAX {
-        println!("=== JETS AVEC <={} RELANCES ===\n", num_relances);
+    // N fois avec N croissant (initialement 0 = on ne relance pas).
+    let mut num_relances = 0;
+    loop {
         let mut continuer = false;
 
         // On fait ça pour chaque nombre de dés...
         for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
             let nb_des = idx_nb_des + 1;
-            println!("Espérances à {} dés:", nb_des);
 
-            // ...et pour chaque mise initiale considérée
+            // ...et pour chaque mise considérée
             for (idx_mise, &mise) in MISES.iter().enumerate() {
                 // On rejette les combinaisons (mise, nb de dés) impossibles
                 if mise_impossible(mise, nb_des) { continue; }
@@ -164,40 +165,51 @@ fn main() {
                 // On calcule l'espérance de gain récursivement (ci-dessous)
                 let esperance_avec_relances = iterer_esperance(num_relances, &stats_jets[..], stats, mise);
 
-                // On affiche le résultat brut
-                let esperance_gain = esperance_avec_relances - mise as Flottant;
-                print!("- Mise {}: Esperance >= {} (Gain moyen >= {:+}, ",
-                       mise, esperance_avec_relances, esperance_gain);
-
-                // On regarde l'évolution par rapport au nombre de lancer max
-                // considéré précédemment
+                // On regarde l'évolution par rapport au nombre de relances
+                // maximal considéré précédemment
                 let mut esperances = stats.esperance_actuelle.get();
                 let delta = esperance_avec_relances - esperances[idx_mise];
                 esperances[idx_mise] = esperance_avec_relances;
                 stats.esperance_actuelle.set(esperances);
 
-                // Cette évolution doit etre positive, on continue d'itérer tant
-                // qu'elle est non nulle (précision flottant pas atteinte)
+                // L'évolution doit etre positive, et on continue d'itérer tant
+                // qu'elle est non nulle (précision flottante pas atteinte)
                 assert!(delta >= 0.);
-                if delta > 0. {
-                    println!("Delta = {:+})", delta);
-                    continuer = true;
-                } else {
-                    println!("STABLE)");
-                }
+                if delta > 0. { continuer = true; }
             }
-
-            println!();
         }
 
         if !continuer { break; }
+        num_relances += 1;
     }
-    // TODO: Quand on a fini d'itérer sur l'espérance, on peut jeter les
-    //       espérances max à profondeur inférieures, elles ne serviront plus.
-    // TODO: Si on est sûr de ce calcul, on peut condenser son affichage en ne
-    //       sortant que le résultat final (et peut-être aussi la table des
-    //       espérances max par choix, mais elle peut être condensée en une
-    //       table par lancer de dés et par mise possible)
+
+    // On résume les résultats...
+    println!("Convergence flottante atteinte à {} relances!", num_relances);
+    println!();
+
+    // ...pour chaque nombre de dés...
+    for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
+        let nb_des = idx_nb_des + 1;
+        println!("Espérances de gain à {} dés:", nb_des);
+
+        // On jette nos calculs détaillés pour les choix, qui ne serviront plus
+        for stats_choix in stats.stats_choix.iter() {
+            stats_choix.esperance_max.borrow_mut().clear();
+        }
+
+        // Puis, pour chaque mise considérée...
+        for (idx_mise, &mise) in MISES.iter().enumerate() {
+            // On rejette les combinaisons (mise, nb de dés) impossibles
+            if mise_impossible(mise, nb_des) { continue; }
+
+            // ...et sinon, on affiche le résultat brut
+            let esperance_lancer = stats.esperance_actuelle.get()[idx_mise];
+            let esperance_gain = esperance_lancer - mise as Flottant;
+            println!("- Mise {}: {:+}",
+                     mise, esperance_gain);
+        }
+        println!();
+    }
 
     // TODO: Etudier l'atterissage
     //
