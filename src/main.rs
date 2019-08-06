@@ -141,11 +141,11 @@ fn main() {
 
     println!("=== ETUDE DES RELANCES ===\n");
 
-    println!("Choix du nombre de relances...");
 
     // On ajuste le nombre de relances en se basant sur la convergence de
     // l'espérance d'un lancer de 6 dés à mise initiale nulle (soit l'espérance
     // d'un tour, mais aussi le cas où on est le plus encouragé à relancer).
+    println!("Choix du nombre de relances...");
     let stats_init = &stats_jets[NB_DES_TOT-1];
     let mut num_relances = 0;
     let mut ancienne_esperance = 0.;
@@ -157,12 +157,10 @@ fn main() {
         ancienne_esperance = esperance;
         num_relances += 1;
     }
-
-    // On résume les résultats...
     println!("Convergence atteinte avec {} relances!", num_relances);
     println!();
 
-    // ...pour chaque nombre de dés...
+    // On tabule les espérances à ce nombre de relances
     for (idx_nb_des, stats) in stats_jets.iter().enumerate() {
         let nb_des = idx_nb_des + 1;
         println!("Espérances de gain à {} dés:", nb_des);
