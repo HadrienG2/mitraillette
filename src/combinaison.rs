@@ -5,6 +5,9 @@ use std::fmt::{self, Debug};
 // Valeur d'une combinaison
 pub type Valeur = u16;
 
+// Valeur minimale d'un dé
+pub const VALEUR_MIN_DE : Valeur = 50;
+
 // Combinaison gagnante définie par la règle de la mitraillette, que l'on peut
 // choisir d'encaisser ou de mettre de côté en relançant le reste des dés.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]

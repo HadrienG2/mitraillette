@@ -1,7 +1,7 @@
 mod choix;
 mod combinaison;
 
-use crate::combinaison::{Combinaison, Valeur};
+use crate::combinaison::{Combinaison, Valeur, VALEUR_MIN_DE};
 
 use std::{
     cell::RefCell,
@@ -25,13 +25,12 @@ const MISES : [Valeur; NB_MISES] = [0, 50, 100, 150, 200, 250, 300, 350, 400,
 // Toutes les combinaisons (mise, nb de dés) ne sont pas possibles. Par exemple,
 // si on lance à un dé, on a nécessairement accumulé au moins 5x50 = 250 points
 fn mise_impossible(mise: Valeur, nb_des: usize) -> bool {
-    let mise = mise as usize;
     if nb_des < NB_DES_TOT {
         // Si on n'a pas tous les dés, on a tiré au moins 50 points des autres
-        mise < (NB_DES_TOT - nb_des) * 50
+        mise < (NB_DES_TOT - nb_des) as Valeur * VALEUR_MIN_DE
     } else {
         // Si on a tous les dés, on est au début ou on a pris 6 dés avant
-        mise > 0 && mise < NB_DES_TOT * 50
+        mise > 0 && mise < NB_DES_TOT as Valeur * VALEUR_MIN_DE
     }
 }
 
