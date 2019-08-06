@@ -189,9 +189,11 @@ fn main() {
 }
 
 // Calcule de l'espérance de gain pour une stratégie où on relance les dés
-// jusqu'à N fois en partant d'un certain solde initial et d'un certain nombre
-// de dés. Pour une profondeur N donnée, le code suppose que toutes les
-// profondeurs 0 <= k < N précédentes ont déjà été sondées.
+// jusqu'à N fois en partant d'un certain solde initial et nombre de dés
+//
+// NOTE: Pour une profondeur N donnée, le code suppose que toutes les
+// profondeurs 0 <= k < N précédentes ont déjà été étudiées.
+//
 fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actuel: &StatsJet, solde_initial: Valeur) -> Flottant {
     // Le but est de déterminer une espérance de gain pour un certain lancer
     let mut esperance_lancer = 0.;
@@ -215,6 +217,11 @@ fn iterer_esperance(num_relances: usize, stats_jets: &[StatsJet], stats_jet_actu
             solde_initial as Flottant
         } else {
             // A N>0 relances, c'est celui où on lance N-1 fois
+            //
+            // NOTE: C'est ce point-là du code qu'il faudrait modifier pour ne
+            //       plus avoir besoin de lancer iterer_esperance à toutes les
+            //       profondeurs précédentes au préalable.
+            //
             stats_choix.esperance_max.borrow()[&(num_relances - 1, solde_initial)]
         };
 
