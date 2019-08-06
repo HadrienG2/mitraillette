@@ -112,6 +112,11 @@ impl Stats {
         }
     }
 
+    // Gain moyen quand on risque "mise" points en lançant "nb_des" dés
+    pub fn gain_moyen(&self, nb_des: usize, mise: Valeur) -> Flottant {
+        self.esperance(nb_des, mise) - mise as Flottant
+    }
+
     // Espérance de gain pour une stratégie qui la maximise, en partant d'un
     // certain nombre de dés et d'une certaine mise préalable
     pub fn esperance(&self, nb_des: usize, mise: Valeur) -> Flottant {

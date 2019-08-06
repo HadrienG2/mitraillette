@@ -50,10 +50,8 @@ fn main() {
             // On rejette les combinaisons (mise, nb de dés) impossibles
             if mise_impossible(nb_des, mise) { continue; }
 
-            // ...et sinon, on affiche le résultat brut
-            let esperance_lancer = stats.esperance(nb_des, mise);
-            let gain_moyen = esperance_lancer - mise as Flottant;
-            println!("- Mise {}: {:+}", mise, gain_moyen);
+            // ...et sinon, on affiche ce qu'on gagne à (re)lancer en moyenne
+            println!("- Mise {}: {:+}", mise, stats.gain_moyen(nb_des, mise));
         }
     }
     println!();
