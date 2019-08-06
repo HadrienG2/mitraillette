@@ -24,7 +24,8 @@ struct StatsJet {
     stats_choix: Box<[StatsChoix]>,
 
     // On garde en cache l'espérance de gain pour un nombre de relances <= N
-    // donné et une certaine mise initiale.
+    // donné et une certaine mise initiale à chaque fois qu'on la calcule, ce
+    // qui évite de la recalculer plein de fois en étudiant les relances.
     esperance: RefCell<HashMap<(usize, Valeur), Flottant>>,
 }
 

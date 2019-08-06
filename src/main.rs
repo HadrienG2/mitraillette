@@ -63,6 +63,23 @@ fn main() {
     //       la fin en plusieurs tours, et ainsi remonter de proche en proche
     //       à une stratégie optimale sur l'ensemble de la partie, à nombre de
     //       points fini, si on explose pas le temps de calcul avant.
+    //
+    //       Je verrais bien pour ça une nouvelle méthode de Stats qui prend...
+    //
+    //       - Un score accumulé jusqu'à présent
+    //       - Un nombre de dés
+    //       - Une mise
+    //       - Un nombre maximum de relances
+    //
+    //       ...et qui retourne en sortie la probabilité de finir dans une
+    //       stratégie qui maximise cette probabilité.
+    //
+    //       On pourrait y faire une interface de plus haut niveau sans le
+    //       nombre maximal de relances, dans le même style que esperance() vs
+    //       calcul_esperance() (et partageant sans doute le même code).
+    //
+    //       Il y aura peut-être d'autres bouts de code à partager, je suis
+    //       curieux de voir la tronche du résultat final.
 
     // TODO: Etudier les autres effets de score fini
     // TODO: Faire des combats de robots
