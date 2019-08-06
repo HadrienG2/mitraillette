@@ -87,16 +87,12 @@ fn enumerer_combinaisons(histo: HistogrammeFaces) -> Vec<Combinaison> {
         }
     }
 
-    // Traitement des faces simples, selon certains principes:
-    // - Il n'est pas rationnel de prendre un 5 sans avoir pris tous les 1
-    // - Il n'est pas rationnel de compter trois 5 ou 1 autrement que comme brelan
-    // FIXME: Il faudra prendre en compte ces combinaisons lors de l'étude de
-    //        l'aterrissage.
-    for nb_un in 1..=(histo[0]%3) {
-        choix.push(Combinaison::FacesSimples{ nb_un, nb_cinq: 0 });
-    }
-    for nb_cinq in 1..=(histo[4]%3) {
-        choix.push(Combinaison::FacesSimples{ nb_un: histo[0]%3, nb_cinq });
+    // Traitement des faces simples
+    for nb_un in 0..=histo[0] {
+        for nb_cinq in 0..=histo[4] {
+            if nb_un == 0 && nb_cinq == 0 { continue; }
+            choix.push(Combinaison::FacesSimples{ nb_un, nb_cinq });
+        }
     }
 
     // ...et on a tout traité
