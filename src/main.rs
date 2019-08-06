@@ -108,7 +108,7 @@ fn main() {
                             let valeur = comb.valeur();
                             let des_restants = nb_des - comb.nb_des();
                             let nb_des_relance = if des_restants == 0 {
-                                6
+                                NB_DES_TOT
                             } else {
                                 des_restants
                             };
@@ -189,9 +189,13 @@ fn main() {
 
         if !continuer { break; }
     }
+    // TODO: Quand on a fini d'itérer sur l'espérance, on peut jeter les
+    //       espérances max à profondeur inférieures, elles ne serviront plus.
 
-    // TODO: Faire des combats de robots
     // TODO: Etudier l'atterissage
+
+    // TODO: Etudier les autres effets de score fini
+    // TODO: Faire des combats de robots
 }
 
 // Calcule de l'espérance de gain pour une stratégie où on relance les dés
