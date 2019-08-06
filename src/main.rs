@@ -4,7 +4,7 @@ mod stats;
 
 use crate::{
     combinaison::{Valeur, VALEUR_MIN_DE},
-    stats::StatsDes,
+    stats::Stats,
 };
 
 
@@ -38,8 +38,8 @@ fn mise_impossible(nb_des: usize, mise: Valeur) -> bool {
 
 fn main() {
     // Tout d'abord, on explore les résultats de jets possibles...
-    println!("Exploration de la combinatoire des dés...");
-    let stats_des = StatsDes::new();
+    println!("\nExploration de la combinatoire des dés...");
+    let stats = Stats::new();
 
     // On tabule les espérances à ce nombre de relances
     for nb_des in 1..=NB_DES_TOT {
@@ -51,7 +51,7 @@ fn main() {
             if mise_impossible(nb_des, mise) { continue; }
 
             // ...et sinon, on affiche le résultat brut
-            let esperance_lancer = stats_des.esperance(nb_des, mise);
+            let esperance_lancer = stats.esperance(nb_des, mise);
             let gain_moyen = esperance_lancer - mise as Flottant;
             println!("- Mise {}: {:+}", mise, gain_moyen);
         }

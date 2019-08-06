@@ -13,7 +13,7 @@ use std::{
 
 
 // Ce qu'on sait sur les lancers de dés à la mitraillette
-pub struct StatsDes {
+pub struct Stats {
     // Données pour chaque nombre de dés
     stats_jets: Box<[StatsJet]>,
 }
@@ -103,7 +103,7 @@ impl StatsJet {
     }
 }
 
-impl StatsDes {
+impl Stats {
     // Initialiser les calculs statistiques à la mitraillette
     pub fn new() -> Self {
         Self {
