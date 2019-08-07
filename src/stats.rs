@@ -196,8 +196,8 @@ impl Stats {
                 }
             }
 
-            // A la fin, on pondère cette espérance maximale par la probabilité
-            // de faire face au choix qu'on a considéré.
+            // A la fin, on pondère l'espérance maximale calculée par la
+            // probabilité de faire face au choix qu'on a considéré
             esperance_lancer += esperance_max * stats_choix.proba;
         }
 

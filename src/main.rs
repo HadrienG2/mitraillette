@@ -29,10 +29,9 @@ const MISES : [Valeur; 23] = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450,
                               2850, 2900, 9250, 9300];
 
 // Toutes les combinaisons (score, mise, nb de dés) ne sont pas vraisemblables.
-// Par exemple, si on lance à un dé, on a nécessairement accumulé au moins
-// 5x50 = 250 points, et aucun individu sain d'esprit ne relancerait si toutes
-// les combinaisons sont perdantes.
-fn mise_impossible(score: Valeur, nb_des: usize, mise: Valeur) -> bool {
+// Par exemple, si on lance un seul dé, on a nécessairement accumulé 250 points,
+// et si on a gagné, on ne relance pas
+fn jet_impossible(score: Valeur, nb_des: usize, mise: Valeur) -> bool {
     score + mise >= SCORE_MAX || if nb_des < NB_DES_TOT {
         // Si on n'a pas tous les dés, on a tiré au moins 50 points des autres
         mise < (NB_DES_TOT - nb_des) as Valeur * VALEUR_MIN_DE
@@ -56,8 +55,8 @@ fn main() {
 
         // Puis, pour chaque mise considérée...
         for &mise in MISES.iter() {
-            // On rejette les combinaisons (mise, nb de dés) impossibles
-            if mise_impossible(0, nb_des, mise) { continue; }
+            // On rejette les situations impossibles
+            if jet_impossible(0, nb_des, mise) { continue; }
 
             // ...et sinon, on affiche ce qu'on gagne à (re)lancer en moyenne
             // TODO: Tester à score variable
