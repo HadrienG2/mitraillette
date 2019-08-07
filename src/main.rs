@@ -18,10 +18,9 @@ const NB_DES_TOT : usize = 6;
 const NB_FACES : usize = 6;
 
 // Mises pour lesquelles on estime les espérances de gain à chaque nombre de dés
-const NB_MISES : usize = 24;
-const MISES : [Valeur; NB_MISES] = [0, 50, 100, 150, 200, 250, 300, 350, 400,
-                                    450, 500, 700, 900, 950, 1000, 1300, 1600,
-                                    2000, 2300, 2600, 2800, 2850, 2900, 10000];
+const MISES : [Valeur; 24] = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450,
+                              500, 700, 900, 950, 1000, 1300, 1600, 2000, 2300,
+                              2600, 2800, 2850, 2900, 10000];
 
 // Toutes les combinaisons (mise, nb de dés) ne sont pas possibles. Par exemple,
 // si on lance à un dé, on a nécessairement accumulé au moins 5x50 = 250 points
