@@ -22,7 +22,7 @@ const NB_FACES : usize = 6;
 
 // Nombre maximal de relances considéré, utile pour éviter d'explorer des
 // régions trop improbables de l'arbre des possibles
-const NB_RELANCES_MAX : usize = 11;
+const NB_RELANCES_MAX : usize = 15;
 
 // Score maximal atteignable. On doit l'atteindre exactement pour terminer.
 const SCORE_MAX : Valeur = 10000;
