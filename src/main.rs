@@ -3,13 +3,19 @@ mod combinaison;
 mod stats;
 
 use crate::{
-    combinaison::{Valeur, VALEUR_MIN_DE},
+    combinaison::VALEUR_MIN_DE,
     stats::Stats,
 };
 
 
-// On va compter les probas sur 64-bit au cas où, on diminuera si besoin
+// Type flottant utilisé pour les probabilités et les espérances
 type Flottant = f32;
+
+// Type destiné à stocker des valeurs de combinaisons, de mises, de scores...
+type Valeur = u16;
+
+// Score maximal atteignable. On doit l'atteindre exactement pour terminer.
+const SCORE_MAX : Valeur = 10000;
 
 // Nombre de dés maximum qu'on peut lancer
 const NB_DES_TOT : usize = 6;
@@ -18,14 +24,16 @@ const NB_DES_TOT : usize = 6;
 const NB_FACES : usize = 6;
 
 // Mises pour lesquelles on estime les espérances de gain à chaque nombre de dés
-const MISES : [Valeur; 24] = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450,
+const MISES : [Valeur; 25] = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450,
                               500, 700, 900, 950, 1000, 1300, 1600, 2000, 2300,
-                              2600, 2800, 2850, 2900, 10000];
+                              2600, 2800, 2850, 2900, 9400, 9450];
 
-// Toutes les combinaisons (mise, nb de dés) ne sont pas possibles. Par exemple,
-// si on lance à un dé, on a nécessairement accumulé au moins 5x50 = 250 points
-fn mise_impossible(nb_des: usize, mise: Valeur) -> bool {
-    if nb_des < NB_DES_TOT {
+// Toutes les combinaisons (score, mise, nb de dés) ne sont pas possibles.
+// Par exemple, si on lance à un dé, on a nécessairement accumulé au moins
+// 5x50 = 250 points, et aucun individu sain d'esprit ne relancerait si toutes
+// les combinaisons sont perdantes.
+fn mise_impossible(score: Valeur, nb_des: usize, mise: Valeur) -> bool {
+    score + mise > SCORE_MAX || if nb_des < NB_DES_TOT {
         // Si on n'a pas tous les dés, on a tiré au moins 50 points des autres
         mise < (NB_DES_TOT - nb_des) as Valeur * VALEUR_MIN_DE
     } else {
@@ -46,11 +54,16 @@ fn main() {
 
         // Puis, pour chaque mise considérée...
         for &mise in MISES.iter() {
+            // TODO: Tester à score variable
+            let score = 0;
+
             // On rejette les combinaisons (mise, nb de dés) impossibles
-            if mise_impossible(nb_des, mise) { continue; }
+            if mise_impossible(score, nb_des, mise) { continue; }
 
             // ...et sinon, on affiche ce qu'on gagne à (re)lancer en moyenne
-            println!("- Mise {}: {:+}", mise, stats.gain_moyen(nb_des, mise));
+            // TODO: Tester à score variable
+            let gain_moyen = stats.gain_moyen(score, nb_des, mise);
+            println!("- Mise {}: {:+}", mise, gain_moyen);
         }
     }
     println!();

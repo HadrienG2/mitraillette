@@ -58,7 +58,7 @@ fn enumerer_combinaisons(histo: HistogrammeFaces) -> Vec<Combinaison> {
     }
 
     // Traitement des triple paires
-    let num_paires: usize = histo.iter().map(|&bin| bin/2).sum();
+    let num_paires : usize = histo.iter().map(|&bin| bin/2).sum();
     if num_paires == 3 {
         choix.push(Combinaison::TriplePaire);
     }

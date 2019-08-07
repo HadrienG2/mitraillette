@@ -1,8 +1,10 @@
 use crate::{
     Flottant,
     NB_DES_TOT,
+    SCORE_MAX,
+    Valeur,
     choix,
-    combinaison::{Combinaison, Valeur},
+    combinaison::Combinaison,
 };
 
 use std::{
@@ -114,17 +116,25 @@ impl Stats {
     }
 
     // Gain moyen quand on risque "mise" points en lançant "nb_des" dés
-    pub fn gain_moyen(&self, nb_des: usize, mise: Valeur) -> Flottant {
-        self.esperance(nb_des, mise) - mise as Flottant
+    pub fn gain_moyen(&self,
+                      score: Valeur,
+                      nb_des: usize,
+                      mise: Valeur) -> Flottant
+    {
+        self.esperance(score, nb_des, mise) - mise as Flottant
     }
 
     // Espérance de gain pour une stratégie qui la maximise, en partant d'un
     // certain nombre de dés et d'une certaine mise préalable
-    pub fn esperance(&self, nb_des: usize, mise: Valeur) -> Flottant {
+    pub fn esperance(&self,
+                     score: Valeur,
+                     nb_des: usize,
+                     mise: Valeur) -> Flottant
+    {
         let mut num_relances = 0;
         let mut ancienne_esperance = 0.;
         loop {
-            let esperance = self.calcul_esperance(nb_des, mise, num_relances);
+            let esperance = self.calcul_esperance(score, nb_des, mise, num_relances);
             assert!(esperance >= ancienne_esperance);
             if esperance == ancienne_esperance { return esperance; }
             ancienne_esperance = esperance;
@@ -134,7 +144,12 @@ impl Stats {
 
     // Calcul de l'espérance de gain en s'autorisant à relancer les dés au plus
     // N fois (une profondeur de relance infinie n'est pas calculable).
-    fn calcul_esperance(&self, nb_des: usize, mise: Valeur, max_relances: usize) -> Flottant {
+    fn calcul_esperance(&self,
+                        score: Valeur,
+                        nb_des: usize,
+                        mise: Valeur,
+                        max_relances: usize) -> Flottant
+    {
         // Est-ce que, par chance, j'ai déjà étudié ce cas précédemment?
         let stats_jet = &self.stats_jets[nb_des-1];
         if let Some(&esperance_lancer) = stats_jet.esperance.borrow()
@@ -147,7 +162,18 @@ impl Stats {
 
         // On passe en revue tous les résultats de lancers gagnants
         for stats_choix in stats_jet.stats_choix.iter() {
-            // On peut empocher la combinaison de valeur maximale...
+            // Si la combinaison de valeur minimale nous emmène à >10000, on a
+            // perdu et ça ne sert à rien de continuer.
+            let valeur_min = stats_choix.choix.iter()
+                                              .map(|poss| poss.valeur)
+                                              .min()
+                                              .unwrap();
+            if score + mise + valeur_min > SCORE_MAX { break; }
+
+            // TODO: Si ça nous emmène exactement à 10000, on gagne, et cela
+            //       devrait être pris en compte dans le calcul...
+
+            // Sinon, on peut empocher la combinaison de valeur maximale...
             let valeur_max = stats_choix.choix.iter()
                                               .map(|poss| poss.valeur)
                                               .max()
@@ -163,7 +189,8 @@ impl Stats {
             for num_relances in 1..=max_relances {
                 for poss in stats_choix.choix.iter() {
                     let esperance =
-                        self.calcul_esperance(poss.nb_des_relance,
+                        self.calcul_esperance(score,
+                                              poss.nb_des_relance,
                                               mise + poss.valeur,
                                               num_relances - 1);
                     esperance_max = esperance_max.max(esperance);

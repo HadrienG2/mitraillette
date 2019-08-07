@@ -1,11 +1,8 @@
-use crate::NB_FACES;
+use crate::{NB_FACES, Valeur};
 use std::fmt::{self, Debug};
 
 
-// Valeur d'une combinaison
-pub type Valeur = u16;
-
-// Valeur minimale d'un dé
+// Valeur minimale d'un dé dans une combinaison
 pub const VALEUR_MIN_DE : Valeur = 50;
 
 // Combinaison gagnante définie par la règle de la mitraillette, que l'on peut
@@ -60,13 +57,13 @@ impl Combinaison {
     // Valeur de la combinaison en points
     pub fn valeur(&self) -> Valeur {
         use Combinaison::*;
-        const VALEURS_BRELANS: [Valeur; NB_FACES] = [1000, 200, 300, 400, 500, 600];
+        const VAL_BRELANS : [Valeur; NB_FACES] = [1000, 200, 300, 400, 500, 600];
         match self {
             Suite | TriplePaire => 500,
             BrelanDouble { idx_faces: [idx_face_1, idx_face_2] } =>
-                VALEURS_BRELANS[*idx_face_1] + VALEURS_BRELANS[*idx_face_2],
+                VAL_BRELANS[*idx_face_1] + VAL_BRELANS[*idx_face_2],
             BrelanSimple { idx_face, nb_un, nb_cinq } =>
-                VALEURS_BRELANS[*idx_face]
+                VAL_BRELANS[*idx_face]
                     + (*nb_un as Valeur) * 100
                     + (*nb_cinq as Valeur) * 50,
             FacesSimples { nb_un, nb_cinq } =>
