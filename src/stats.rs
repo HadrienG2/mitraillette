@@ -172,7 +172,7 @@ impl Stats {
                 if score + mise + poss.valeur > SCORE_MAX { continue; }
                 esperance_max = esperance_max.max((mise + poss.valeur) as Flottant);
 
-                // ...et on peut ensuite, éventuellement, relancer les dés...
+                // ...et si on n'est pas à 10000, on peut relancer les dés...
                 if score + mise + poss.valeur == SCORE_MAX { continue; }
                 for num_relances in 1..=max_relances {
                     let esperance =
