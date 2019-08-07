@@ -25,10 +25,11 @@ struct StatsJet {
     // Choix auxquels on peut faire face si on tire des combinaisons
     stats_choix: Box<[StatsChoix]>,
 
-    // On garde en cache l'espérance de gain pour un nombre de relances <= N
-    // donné et une certaine mise initiale à chaque fois qu'on la calcule, ce
-    // qui évite de la recalculer plein de fois en étudiant les relances.
-    esperance: RefCell<HashMap<(usize, Valeur), Flottant>>,
+    // On garde en cache l'espérance de gain pour un certain score de départ,
+    // une mise qu'on possédait avant de lancer les dés, et un nombre de
+    // relances maximal. Cela évite de recalculer plein de fois la même chose en
+    // étudiant les relances de dés.
+    esperance: RefCell<HashMap<(Valeur, Valeur, usize), Flottant>>,
 }
 
 // L'un dex choix face auxquels un jet de dés peut nous placer
@@ -153,7 +154,7 @@ impl Stats {
         // Est-ce que, par chance, j'ai déjà étudié ce cas précédemment?
         let stats_jet = &self.stats_jets[nb_des-1];
         if let Some(&esperance_lancer) = stats_jet.esperance.borrow()
-                                                  .get(&(max_relances, mise)) {
+                                                  .get(&(score, mise, max_relances)) {
             return esperance_lancer;
         }
 
@@ -162,32 +163,18 @@ impl Stats {
 
         // On passe en revue tous les résultats de lancers gagnants
         for stats_choix in stats_jet.stats_choix.iter() {
-            // Si la combinaison de valeur minimale nous emmène à >10000, on a
-            // perdu et ça ne sert à rien de continuer.
-            let valeur_min = stats_choix.choix.iter()
-                                              .map(|poss| poss.valeur)
-                                              .min()
-                                              .unwrap();
-            if score + mise + valeur_min > SCORE_MAX { break; }
+            // On cherche la tactique qui maximise l'espérance
+            let mut esperance_max : Flottant = 0.;
 
-            // TODO: Si ça nous emmène exactement à 10000, on gagne, et cela
-            //       devrait être pris en compte dans le calcul...
+            // Pour chaque combinaison proposée...
+            for poss in stats_choix.choix.iter() {
+                // ...on peut l'empocher, si ça ne nous emmène pas à >10000...
+                if score + mise + poss.valeur > SCORE_MAX { continue; }
+                esperance_max = esperance_max.max((mise + poss.valeur) as Flottant);
 
-            // Sinon, on peut empocher la combinaison de valeur maximale...
-            let valeur_max = stats_choix.choix.iter()
-                                              .map(|poss| poss.valeur)
-                                              .max()
-                                              .unwrap();
-
-            // ...ou bien on peut relancer, de 1 à num_relances fois. Parmi ces
-            // options, on cherche celle qui maximise l'espérance de gain.
-            let mut esperance_max = (mise + valeur_max) as Flottant;
-
-            // Pour traiter les relances, il suffit de considérer chaque combinaison
-            // qu'on peut empocher, l'ajouter à la mise, et faire une récursion avec
-            // le nouveau nombre de dés et un budget relance réduit
-            for num_relances in 1..=max_relances {
-                for poss in stats_choix.choix.iter() {
+                // ...et on peut ensuite, éventuellement, relancer les dés...
+                if score + mise + poss.valeur == SCORE_MAX { continue; }
+                for num_relances in 1..=max_relances {
                     let esperance =
                         self.calcul_esperance(score,
                                               poss.nb_des_relance,
@@ -204,7 +191,7 @@ impl Stats {
 
         // On met en cache ce résultat
         assert_eq!(stats_jet.esperance.borrow_mut()
-                            .insert((max_relances, mise), esperance_lancer),
+                            .insert((score, mise, max_relances), esperance_lancer),
                    None);
 
         // On retourne ce résultat à l'appelant
