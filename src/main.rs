@@ -69,7 +69,7 @@ fn main() {
     }
     println!();
 
-    // Ensuite, on tabule les espérances de gain à score nul
+    // Ensuite, on s'intéresse aux "atterissages"
     println!("\n=== PROBABILITE DE GAGNER CE TOUR-CI ===\n");
 
     for score in (8000..10000).rev().filter(|s| s % 50 == 0) {
