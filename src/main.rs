@@ -77,9 +77,4 @@ fn main() {
         println!("Score {}, 6 dés sans mise: {}", score, proba);
     }
     println!();
-
-    // TODO: Etudier atterissages en partant d'un nombre de dés différent, d'une
-    //       mise différente, en plusieurs tours...
-
-    // TODO: Faire des combats de robots
 }
