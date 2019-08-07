@@ -69,24 +69,17 @@ fn main() {
     // Ensuite, on tabule les espérances de gain à score nul
     println!("\n=== PROBABILITE DE GAGNER CE TOUR-CI ===\n");
 
-    for score in (8000..10000).rev().filter(|s| s % 50 == 0) {
+    for score in (7000..10000).rev().filter(|s| s % 50 == 0) {
         // TODO: Extraire ça à part
-        const RELANCES_SANS_GAIN : usize = 2;
         let mut num_relances = 0;
         let mut ancienne_proba = 0.;
-        let mut relances_restantes = RELANCES_SANS_GAIN;
         loop {
             let proba = stats.calcul_proba_fin(score, 6, 0, num_relances);
             assert!(proba >= ancienne_proba);
-            if proba == ancienne_proba {
-                relances_restantes -= 1;
-                if relances_restantes == 0 {
-                    println!("Score {}, 6 dés sans mise: {} ({} relances)",
-                             score, proba, num_relances);
-                    break;
-                }
-            } else {
-                relances_restantes = RELANCES_SANS_GAIN;
+            if proba == ancienne_proba && proba != 0. {
+                println!("Score {}, 6 dés sans mise: {} ({} relances)",
+                         score, proba, num_relances);
+                break;
             }
             ancienne_proba = proba;
             num_relances += 1;
