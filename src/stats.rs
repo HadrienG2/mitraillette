@@ -30,6 +30,9 @@ struct StatsJet {
     // relances maximal. Cela évite de recalculer plein de fois la même chose en
     // étudiant les relances de dés.
     esperance: RefCell<HashMap<(Valeur, Valeur, usize), Flottant>>,
+
+    // Même topo avec la probabilité de finir la partie
+    proba_fin: RefCell<HashMap<(Valeur, Valeur, usize), Flottant>>,
 }
 
 // L'un dex choix face auxquels un jet de dés peut nous placer
@@ -103,6 +106,7 @@ impl StatsJet {
         Self {
             stats_choix,
             esperance: RefCell::new(HashMap::new()),
+            proba_fin: RefCell::new(HashMap::new()),
         }
     }
 }
@@ -143,8 +147,7 @@ impl Stats {
         }
     }
 
-    // Calcul de l'espérance de gain en s'autorisant à relancer les dés au plus
-    // N fois (une profondeur de relance infinie n'est pas calculable).
+    // Calcul de l'espérance de gain en s'autorisant à relancer les dés N fois
     fn calcul_esperance(&self,
                         score: Valeur,
                         nb_des: usize,
@@ -208,5 +211,63 @@ impl Stats {
 
         // On retourne ce résultat à l'appelant
         esperance_lancer
+    }
+
+    // Calcul de la probabilité de gagner la partie avec N relances
+    // FIXME: Ne devrait pas être pub
+    pub fn calcul_proba_fin(&self,
+                        score: Valeur,
+                        nb_des: usize,
+                        mise: Valeur,
+                        max_relances: usize) -> Flottant
+    {
+        // Est-ce que, par chance, j'ai déjà étudié ce cas précédemment?
+        let stats_jet = &self.stats_jets[nb_des-1];
+        if let Some(&proba_fin_partie) = stats_jet.proba_fin.borrow()
+                                                  .get(&(score, mise, max_relances)) {
+            return proba_fin_partie;
+        }
+
+        // Le but est de déterminer la probabilité de gagner la partie
+        let mut proba_fin_partie = 0.;
+
+        // On passe en revue tous les résultats de lancers gagnants
+        for stats_choix in stats_jet.stats_choix.iter() {
+            // On note la valeur de la combinaison la plus chère
+            let valeur_max = stats_choix.choix.iter()
+                                              .map(|poss| poss.valeur)
+                                              .max()
+                                              .unwrap();
+
+            // Si elle nous amène à 10000, on a gagné
+            let mut proba_fin_max : Flottant =
+                if score + mise + valeur_max == 10000 { 1. } else { 0. };
+
+            // Sinon, on peut tenter de prendre une combinaison qui nous amène
+            // à mons de 10000 et relancer.
+            for poss in stats_choix.choix.iter() {
+                let nouvelle_mise = mise + poss.valeur;
+                if score + nouvelle_mise >= SCORE_MAX { continue; }
+                for num_relances in 1..=max_relances {
+                    let proba_fin =
+                        self.calcul_proba_fin(score,
+                                              poss.nb_des_relance,
+                                              nouvelle_mise,
+                                              num_relances - 1);
+                    proba_fin_max = proba_fin_max.max(proba_fin);
+                }
+            }
+
+            // On pondère le résultat par la chance de tirer ce jet
+            proba_fin_partie += proba_fin_max * stats_choix.proba;
+        }
+
+        // On met en cache ce résultat
+        assert_eq!(stats_jet.proba_fin.borrow_mut()
+                            .insert((score, mise, max_relances), proba_fin_partie),
+                   None);
+
+        // On retourne ce résultat à l'appelant
+        proba_fin_partie
     }
 }

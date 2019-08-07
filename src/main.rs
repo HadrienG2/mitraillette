@@ -66,31 +66,36 @@ fn main() {
     }
     println!();
 
-    // TODO: Etudier l'atterissage
-    //
-    //       On va commencer par déterminer à partir de quel score on a une
-    //       chance maximale de finir en un tour. Après, on pourra considérer
-    //       la fin en plusieurs tours, et ainsi remonter de proche en proche
-    //       à une stratégie optimale sur l'ensemble de la partie, à nombre de
-    //       points fini, si on explose pas le temps de calcul avant.
-    //
-    //       Je verrais bien pour ça une nouvelle méthode de Stats qui prend...
-    //
-    //       - Un score accumulé jusqu'à présent
-    //       - Un nombre de dés
-    //       - Une mise
-    //       - Un nombre maximum de relances
-    //
-    //       ...et qui retourne en sortie la probabilité de finir dans une
-    //       stratégie qui maximise cette probabilité.
-    //
-    //       On pourrait y faire une interface de plus haut niveau sans le
-    //       nombre maximal de relances, dans le même style que esperance() vs
-    //       calcul_esperance() (et partageant sans doute le même code).
-    //
-    //       Il y aura peut-être d'autres bouts de code à partager, je suis
-    //       curieux de voir la tronche du résultat final.
+    // Ensuite, on tabule les espérances de gain à score nul
+    println!("\n=== PROBABILITE DE GAGNER CE TOUR-CI ===\n");
 
-    // TODO: Etudier les autres effets de score fini
+    for score in (8000..10000).rev().filter(|s| s % 50 == 0) {
+        // TODO: Extraire ça à part
+        const RELANCES_SANS_GAIN : usize = 2;
+        let mut num_relances = 0;
+        let mut ancienne_proba = 0.;
+        let mut relances_restantes = RELANCES_SANS_GAIN;
+        loop {
+            let proba = stats.calcul_proba_fin(score, 6, 0, num_relances);
+            assert!(proba >= ancienne_proba);
+            if proba == ancienne_proba {
+                relances_restantes -= 1;
+                if relances_restantes == 0 {
+                    println!("Score {}, 6 dés sans mise: {} ({} relances)",
+                             score, proba, num_relances);
+                    break;
+                }
+            } else {
+                relances_restantes = RELANCES_SANS_GAIN;
+            }
+            ancienne_proba = proba;
+            num_relances += 1;
+        }
+    }
+    println!();
+
+    // TODO: Etudier atterissages en partant d'un nombre de dés différent, d'une
+    //       mise différente, en plusieurs tours...
+
     // TODO: Faire des combats de robots
 }
