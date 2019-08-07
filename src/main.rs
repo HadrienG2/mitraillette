@@ -63,7 +63,6 @@ fn main() {
             if jet_impossible(0, nb_des, mise) { continue; }
 
             // ...et sinon, on affiche ce qu'on gagne à (re)lancer en moyenne
-            // TODO: Tester à score variable
             let gain_moyen = stats.gain_moyen(0, nb_des, mise);
             println!("- Mise {}: {:+}", mise, gain_moyen);
         }
@@ -73,7 +72,7 @@ fn main() {
     // Ensuite, on tabule les espérances de gain à score nul
     println!("\n=== PROBABILITE DE GAGNER CE TOUR-CI ===\n");
 
-    for score in (7000..10000).rev().filter(|s| s % 50 == 0) {
+    for score in (8000..10000).rev().filter(|s| s % 50 == 0) {
         let proba = stats.proba_fin(score, 6, 0, NB_RELANCES_MAX);
         println!("Score {}, 6 dés sans mise: {}", score, proba);
     }

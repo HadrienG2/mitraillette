@@ -163,7 +163,7 @@ impl Stats {
         for num_relances in 0..max_relances {
             let proba = self.calcul_proba_fin(score, nb_des, mise, num_relances);
             assert!(proba >= ancienne_proba);
-            if proba > 0. && proba == ancienne_proba { print!("{} relances -- ", num_relances); return proba; }
+            if proba > 0. && proba == ancienne_proba { return proba; }
             ancienne_proba = proba;
         }
         self.calcul_proba_fin(score, nb_des, mise, max_relances)
