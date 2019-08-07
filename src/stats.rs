@@ -163,34 +163,41 @@ impl Stats {
 
         // On passe en revue tous les résultats de lancers gagnants
         for stats_choix in stats_jet.stats_choix.iter() {
-            // Si la combinaison de valeur maximale nous amène à >10000, on a
-            // instantanément perdu et on doit s'arrêter là
-            let valeur_max = stats_choix.choix.iter().map(|poss| poss.valeur).max().unwrap();
-            if score + mise + valeur_max > SCORE_MAX { continue; }
+            // On note la valeur de la combinaison la plus chère. Si elle nous
+            // amène à plus de 10000, on ne peut pas s'arrêter là.
+            let valeur_max = stats_choix.choix.iter()
+                                              .map(|poss| poss.valeur)
+                                              .max()
+                                              .unwrap();
+            let arret_possible = score + mise + valeur_max <= SCORE_MAX;
 
-            // Sinon, on cherche la stratégie qui maximise l'espérance
+            // On cherche la stratégie qui maximise l'espérance
             let mut esperance_max : Flottant = 0.;
 
-            // Pour chaque combinaison proposée...
+            // On considère la possibilité de prendre chaque combinaison...
             for poss in stats_choix.choix.iter() {
-                // ...on peut l'empocher, si ça ne nous emmène pas à >10000...
-                if score + mise + poss.valeur > SCORE_MAX { continue; }
-                esperance_max = esperance_max.max((mise + poss.valeur) as Flottant);
+                let nouvelle_mise = mise + poss.valeur;
 
-                // ...et, si on n'est pas à 10000, on peut relancer les dés...
-                if score + mise + poss.valeur == SCORE_MAX { continue; }
+                // Si la règle nous y autorise, on peut s'arrêter là
+                if arret_possible {
+                    esperance_max = esperance_max.max(nouvelle_mise as Flottant);
+                }
+
+                // Si prendre cette combinaison ne nous fait pas atteindre ou
+                // dépasser le score maximal, on peut aussi relancer <= N fois
+                if score + nouvelle_mise >= SCORE_MAX { continue; }
                 for num_relances in 1..=max_relances {
                     let esperance =
                         self.calcul_esperance(score,
                                               poss.nb_des_relance,
-                                              mise + poss.valeur,
+                                              nouvelle_mise,
                                               num_relances - 1);
                     esperance_max = esperance_max.max(esperance);
                 }
             }
 
-            // A la fin, on pondère cette espérance maximale par la probabilité de
-            // faire face au choix qu'on a considéré.
+            // A la fin, on pondère cette espérance maximale par la probabilité
+            // de faire face au choix qu'on a considéré.
             esperance_lancer += esperance_max * stats_choix.proba;
         }
 
