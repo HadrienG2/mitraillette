@@ -163,7 +163,12 @@ impl Stats {
 
         // On passe en revue tous les résultats de lancers gagnants
         for stats_choix in stats_jet.stats_choix.iter() {
-            // On cherche la tactique qui maximise l'espérance
+            // Si la combinaison de valeur maximale nous amène à >10000, on a
+            // instantanément perdu et on doit s'arrêter là
+            let valeur_max = stats_choix.choix.iter().map(|poss| poss.valeur).max().unwrap();
+            if score + mise + valeur_max > SCORE_MAX { continue; }
+
+            // Sinon, on cherche la stratégie qui maximise l'espérance
             let mut esperance_max : Flottant = 0.;
 
             // Pour chaque combinaison proposée...
@@ -172,7 +177,7 @@ impl Stats {
                 if score + mise + poss.valeur > SCORE_MAX { continue; }
                 esperance_max = esperance_max.max((mise + poss.valeur) as Flottant);
 
-                // ...et si on n'est pas à 10000, on peut relancer les dés...
+                // ...et, si on n'est pas à 10000, on peut relancer les dés...
                 if score + mise + poss.valeur == SCORE_MAX { continue; }
                 for num_relances in 1..=max_relances {
                     let esperance =
