@@ -20,6 +20,10 @@ const NB_DES_TOT : usize = 6;
 // Nombre de faces par dé
 const NB_FACES : usize = 6;
 
+// Nombre maximal de relances considéré, utile pour éviter d'explorer des
+// régions trop improbables de l'arbre des possibles
+const NB_RELANCES_MAX : usize = 11;
+
 // Score maximal atteignable. On doit l'atteindre exactement pour terminer.
 const SCORE_MAX : Valeur = 10000;
 
@@ -70,20 +74,8 @@ fn main() {
     println!("\n=== PROBABILITE DE GAGNER CE TOUR-CI ===\n");
 
     for score in (7000..10000).rev().filter(|s| s % 50 == 0) {
-        // TODO: Extraire ça à part
-        let mut num_relances = 0;
-        let mut ancienne_proba = 0.;
-        loop {
-            let proba = stats.calcul_proba_fin(score, 6, 0, num_relances);
-            assert!(proba >= ancienne_proba);
-            if proba == ancienne_proba && proba != 0. {
-                println!("Score {}, 6 dés sans mise: {} ({} relances)",
-                         score, proba, num_relances);
-                break;
-            }
-            ancienne_proba = proba;
-            num_relances += 1;
-        }
+        let proba = stats.proba_fin(score, 6, 0, NB_RELANCES_MAX);
+        println!("Score {}, 6 dés sans mise: {}", score, proba);
     }
     println!();
 

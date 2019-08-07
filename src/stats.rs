@@ -147,6 +147,28 @@ impl Stats {
         }
     }
 
+    // Probabilité de gagner (atteindre 10000) en continuant à lancer les dés.
+    //
+    // Pour des scores faibles, les régions de l'arbre des lancer de dés où on
+    // gagne sont très profondes, donc il vaut mieux s'arrêter à une certaine
+    // profondeur quitte à sous-estimer cette probabilité.
+    //
+    pub fn proba_fin(&self,
+                     score: Valeur,
+                     nb_des: usize,
+                     mise: Valeur,
+                     max_relances: usize) -> Flottant
+    {
+        let mut ancienne_proba = 0.;
+        for num_relances in 0..max_relances {
+            let proba = self.calcul_proba_fin(score, nb_des, mise, num_relances);
+            assert!(proba >= ancienne_proba);
+            if proba > 0. && proba == ancienne_proba { print!("{} relances -- ", num_relances); return proba; }
+            ancienne_proba = proba;
+        }
+        self.calcul_proba_fin(score, nb_des, mise, max_relances)
+    }
+
     // Calcul de l'espérance de gain en s'autorisant à relancer les dés N fois
     fn calcul_esperance(&self,
                         score: Valeur,
@@ -214,8 +236,7 @@ impl Stats {
     }
 
     // Calcul de la probabilité de gagner la partie avec N relances
-    // FIXME: Ne devrait pas être pub
-    pub fn calcul_proba_fin(&self,
+    fn calcul_proba_fin(&self,
                         score: Valeur,
                         nb_des: usize,
                         mise: Valeur,
