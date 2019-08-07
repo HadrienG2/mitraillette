@@ -24,9 +24,9 @@ const NB_FACES : usize = 6;
 const SCORE_MAX : Valeur = 10000;
 
 // Mises pour lesquelles on estime les espérances de gain à chaque nombre de dés
-const MISES : [Valeur; 25] = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450,
-                              500, 700, 900, 950, 1000, 1300, 1600, 2000, 2300,
-                              2600, 2800, 2850, 2900, 8900, 8950];
+const MISES : [Valeur; 23] = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450,
+                              500, 700, 950, 1000, 1300, 1600, 2000, 2300, 2600,
+                              2850, 2900, 9250, 9300];
 
 // Toutes les combinaisons (score, mise, nb de dés) ne sont pas vraisemblables.
 // Par exemple, si on lance à un dé, on a nécessairement accumulé au moins
